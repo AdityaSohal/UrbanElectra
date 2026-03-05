@@ -8,11 +8,15 @@ dotenv.config({quiet:true});
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.use(express.json());
+
+app.use("/api/auth",authRoutes);
+
 app.get("/health", (req, res) => {
     res.send("hello motherfucker");
 });
 
-app.use("/api/auth",authRoutes);
+
 
 app.listen(PORT, () => {
     console.log(`Server is running on: http://localhost:${PORT}`);
