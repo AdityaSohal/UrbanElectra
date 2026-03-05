@@ -13,7 +13,7 @@ export const createCheckoutSession = async (req, res) => {
 		let totalAmount = 0;
 
 		const lineItems = products.map((product) => {
-			const amount = Math.round(product.price * 100); cents
+			const amount = Math.round(product.price * 100); // cents ✅ Fixed: removed dangling word
 			totalAmount += amount * product.quantity;
 
 			return {
@@ -44,11 +44,7 @@ export const createCheckoutSession = async (req, res) => {
 			success_url: `${process.env.CLIENT_URL}/purchase-success?session_id={CHECKOUT_SESSION_ID}`,
 			cancel_url: `${process.env.CLIENT_URL}/purchase-cancel`,
 			discounts: coupon
-				? [
-						{
-							coupon: await createStripeCoupon(coupon.discountPercentage),
-						},
-				]
+				? [{ coupon: await createStripeCoupon(coupon.discountPercentage) }]
 				: [],
 			metadata: {
 				userId: req.user._id.toString(),
@@ -81,13 +77,8 @@ export const checkoutSuccess = async (req, res) => {
 		if (session.payment_status === "paid") {
 			if (session.metadata.couponCode) {
 				await Coupon.findOneAndUpdate(
-					{
-						code: session.metadata.couponCode,
-						userId: session.metadata.userId,
-					},
-					{
-						isActive: false,
-					}
+					{ code: session.metadata.couponCode, userId: session.metadata.userId },
+					{ isActive: false }
 				);
 			}
 			const products = JSON.parse(session.metadata.products);
@@ -98,7 +89,7 @@ export const checkoutSuccess = async (req, res) => {
 					quantity: product.quantity,
 					price: product.price,
 				})),
-				totalAmount: session.amount_total / 100, 
+				totalAmount: session.amount_total / 100,
 				stripeSessionId: sessionId,
 			});
 
@@ -121,21 +112,17 @@ async function createStripeCoupon(discountPercentage) {
 		percent_off: discountPercentage,
 		duration: "once",
 	});
-
 	return coupon.id;
 }
 
 async function createNewCoupon(userId) {
 	await Coupon.findOneAndDelete({ userId });
-
 	const newCoupon = new Coupon({
 		code: "GIFT" + Math.random().toString(36).substring(2, 8).toUpperCase(),
 		discountPercentage: 10,
-		expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 
+		expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
 		userId: userId,
 	});
-
 	await newCoupon.save();
-
 	return newCoupon;
 }
