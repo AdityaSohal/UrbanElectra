@@ -1,12 +1,14 @@
 {
-    "version": 2,
+    "buildCommand": "npm run build",
+    "outputDirectory": "admin/dist",
+    "framework": null,
     "rewrites": [
         {
             "source": "/api/(.*)",
-            "destination": "/api/$1"
+            "destination": "/api/index.js"
         },
         {
-            "source": "/((?!api).*)",
+            "source": "/(.*)",
             "destination": "/index.html"
         }
     ]
