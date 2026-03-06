@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/AdityaSohal/UrbanElectra#readme",
   "dependencies": {
+    "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.9.0",
     "cookie-parser": "^1.4.7",
