@@ -1,7 +1,5 @@
 {
     "version": 2,
-    "buildCommand": "npm install && npm install --prefix frontend && npm run build --prefix frontend",
-    "outputDirectory": "frontend/dist",
     "rewrites": [
         {
             "source": "/api/(.*)",
@@ -10,17 +8,6 @@
         {
             "source": "/((?!api).*)",
             "destination": "/index.html"
-        }
-    ],
-    "functions": {
-        "backend/server.js": {
-            "runtime": "@vercel/node@3"
-        }
-    },
-    "routes": [
-        {
-            "src": "/api/(.*)",
-            "dest": "backend/server.js"
         }
     ]
 }
