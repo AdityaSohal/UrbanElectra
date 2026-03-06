@@ -9,14 +9,13 @@ export const createCheckoutSession = async (req, res) => {
 			return res.status(400).json({ error: "Invalid or empty products array" });
 		}
 
-		// ✅ Fix #3: Track originalTotal (pre-discount) separately for the coupon reward threshold
 		let totalAmount = 0;
 		let originalTotal = 0;
 
 		const lineItems = products.map((product) => {
 			const amount = Math.round(product.price * 100);
 			totalAmount += amount * product.quantity;
-			originalTotal += amount * product.quantity; // pre-discount total
+			originalTotal += amount * product.quantity;
 			return {
 				price_data: {
 					currency: "usd",
@@ -60,12 +59,16 @@ export const createCheckoutSession = async (req, res) => {
 			},
 		});
 
-		// ✅ Fix #3: Use originalTotal (pre-discount) for the reward threshold check
 		if (originalTotal >= 20000) {
 			await createNewCoupon(req.user._id);
 		}
 
-		res.status(200).json({ id: session.id, totalAmount: totalAmount / 100 });
+		// ✅ Return session.url so frontend can redirect directly (new Stripe API)
+		res.status(200).json({
+			id: session.id,
+			url: session.url,
+			totalAmount: totalAmount / 100,
+		});
 	} catch (error) {
 		console.error("Error processing checkout:", error);
 		res.status(500).json({ message: "Error processing checkout", error: error.message });
