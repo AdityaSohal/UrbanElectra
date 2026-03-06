@@ -20,19 +20,19 @@ export const useUserStore = create((set, get) => ({
 			set({ user: res.data, loading: false });
 		} catch (error) {
 			set({ loading: false });
-			toast.error(error.response.data.message || "An error occurred");
+			// ✅ Fix #6: safe optional chaining so it never crashes when server is down
+			toast.error(error.response?.data?.message || "An error occurred");
 		}
 	},
+
 	login: async (email, password) => {
 		set({ loading: true });
-
 		try {
 			const res = await axios.post("/auth/login", { email, password });
-
 			set({ user: res.data, loading: false });
 		} catch (error) {
 			set({ loading: false });
-			toast.error(error.response.data.message || "An error occurred");
+			toast.error(error.response?.data?.message || "An error occurred");
 		}
 	},
 
@@ -56,9 +56,10 @@ export const useUserStore = create((set, get) => ({
 		}
 	},
 
+	// ✅ Fix #7: Use a dedicated module-level flag instead of checkingAuth
+	// so token refresh doesn't block checkAuth from running simultaneously
 	refreshToken: async () => {
-		// Prevent multiple simultaneous refresh attempts
-		if (get().checkingAuth) return;
+		if (isRefreshing) return;
 
 		set({ checkingAuth: true });
 		try {
@@ -72,9 +73,8 @@ export const useUserStore = create((set, get) => ({
 	},
 }));
 
-// TODO: Implement the axios interceptors for refreshing access token
-
-// Axios interceptor for token refresh
+// ✅ Fix #7: Module-level flag — completely separate from checkingAuth state
+let isRefreshing = false;
 let refreshPromise = null;
 
 axios.interceptors.response.use(
@@ -85,20 +85,22 @@ axios.interceptors.response.use(
 			originalRequest._retry = true;
 
 			try {
-				// If a refresh is already in progress, wait for it to complete
 				if (refreshPromise) {
 					await refreshPromise;
 					return axios(originalRequest);
 				}
 
-				// Start a new refresh process
+				// ✅ Fix #7: guard with isRefreshing, not checkingAuth
+				isRefreshing = true;
 				refreshPromise = useUserStore.getState().refreshToken();
 				await refreshPromise;
 				refreshPromise = null;
+				isRefreshing = false;
 
 				return axios(originalRequest);
 			} catch (refreshError) {
-				// If refresh fails, redirect to login or handle as needed
+				isRefreshing = false;
+				refreshPromise = null;
 				useUserStore.getState().logout();
 				return Promise.reject(refreshError);
 			}

@@ -4,7 +4,7 @@ import Product from "../models/product.model.js";
 
 export const getAllProducts = async (req, res) => {
 	try {
-		const products = await Product.find({}); 
+		const products = await Product.find({});
 		res.json({ products });
 	} catch (error) {
 		console.log("Error in getAllProducts controller", error.message);
@@ -57,15 +57,31 @@ export const deleteProduct = async (req, res) => {
 		if (!product) {
 			return res.status(404).json({ message: "Product not found" });
 		}
+
 		if (product.image) {
-			const publicId = product.image.split("/").pop().split(".")[0];
+			// ✅ Fix #4: Robust Cloudinary public ID extraction
+			// Handles URLs like: https://res.cloudinary.com/demo/image/upload/v123/products/abc.jpg
 			try {
-				await cloudinary.uploader.destroy(`products/${publicId}`);
-				console.log("deleted image from cloduinary");
+				const urlParts = product.image.split("/");
+				// Find the "upload" segment index and take everything after version segment
+				const uploadIndex = urlParts.indexOf("upload");
+				if (uploadIndex !== -1) {
+					// Parts after "upload" are: version (optional), folder, filename
+					const afterUpload = urlParts.slice(uploadIndex + 1);
+					// Skip version segment (starts with 'v' followed by numbers)
+					const publicIdParts = afterUpload[0]?.match(/^v\d+$/)
+						? afterUpload.slice(1)
+						: afterUpload;
+					// Join and strip file extension
+					const publicId = publicIdParts.join("/").replace(/\.[^/.]+$/, "");
+					await cloudinary.uploader.destroy(publicId);
+					console.log("Deleted image from Cloudinary:", publicId);
+				}
 			} catch (error) {
-				console.log("error deleting image from cloduinary", error);
+				console.log("Error deleting image from Cloudinary", error);
 			}
 		}
+
 		await Product.findByIdAndDelete(req.params.id);
 		res.json({ message: "Product deleted successfully" });
 	} catch (error) {
@@ -77,9 +93,7 @@ export const deleteProduct = async (req, res) => {
 export const getRecommendedProducts = async (req, res) => {
 	try {
 		const products = await Product.aggregate([
-			{
-				$sample: { size: 4 },
-			},
+			{ $sample: { size: 4 } },
 			{
 				$project: {
 					_id: 1,
@@ -130,6 +144,6 @@ async function updateFeaturedProductsCache() {
 		const featuredProducts = await Product.find({ isFeatured: true }).lean();
 		await redis.set("featured_products", JSON.stringify(featuredProducts));
 	} catch (error) {
-		console.log("error in update cache function");
+		console.log("Error in update cache function", error);
 	}
 }
