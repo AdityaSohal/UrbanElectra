@@ -1,6 +1,6 @@
 {
     "buildCommand": "npm run build",
-    "outputDirectory": "admin/dist",
+    "outputDirectory": "frontend/dist",
     "framework": null,
     "rewrites": [
         {
