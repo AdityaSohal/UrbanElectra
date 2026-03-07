@@ -20,7 +20,6 @@ export const useUserStore = create((set, get) => ({
 			set({ user: res.data, loading: false });
 		} catch (error) {
 			set({ loading: false });
-			// ✅ Fix #6: safe optional chaining so it never crashes when server is down
 			toast.error(error.response?.data?.message || "An error occurred");
 		}
 	},
@@ -56,8 +55,6 @@ export const useUserStore = create((set, get) => ({
 		}
 	},
 
-	// ✅ Fix #7: Use a dedicated module-level flag instead of checkingAuth
-	// so token refresh doesn't block checkAuth from running simultaneously
 	refreshToken: async () => {
 		if (isRefreshing) return;
 
@@ -73,7 +70,6 @@ export const useUserStore = create((set, get) => ({
 	},
 }));
 
-// ✅ Fix #7: Module-level flag — completely separate from checkingAuth state
 let isRefreshing = false;
 let refreshPromise = null;
 
@@ -90,7 +86,6 @@ axios.interceptors.response.use(
 					return axios(originalRequest);
 				}
 
-				// ✅ Fix #7: guard with isRefreshing, not checkingAuth
 				isRefreshing = true;
 				refreshPromise = useUserStore.getState().refreshToken();
 				await refreshPromise;
@@ -108,3 +103,4 @@ axios.interceptors.response.use(
 		return Promise.reject(error);
 	}
 );
+

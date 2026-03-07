@@ -2,7 +2,6 @@ import Order from "../models/order.model.js";
 import Product from "../models/product.model.js";
 import User from "../models/user.model.js";
 
-// Statuses that should NOT count toward revenue or sales figures
 const EXCLUDED_STATUSES = ["cancelled", "refunded", "returned"];
 
 export const getAnalyticsData = async () => {
@@ -11,7 +10,6 @@ export const getAnalyticsData = async () => {
 
 	const salesData = await Order.aggregate([
 		{
-			// Only count orders that are active / completed
 			$match: {
 				status: { $nin: EXCLUDED_STATUSES },
 			},
@@ -30,7 +28,6 @@ export const getAnalyticsData = async () => {
 		totalRevenue: 0,
 	};
 
-	// Also return a breakdown by status so the frontend can show richer data
 	const statusBreakdown = await Order.aggregate([
 		{
 			$group: {
@@ -46,7 +43,6 @@ export const getAnalyticsData = async () => {
 		byStatus[s._id] = { count: s.count, revenue: s.revenue };
 	});
 
-	// Refunded amount — useful to show separately on the dashboard
 	const refundedData = await Order.aggregate([
 		{ $match: { status: "refunded" } },
 		{
@@ -66,11 +62,11 @@ export const getAnalyticsData = async () => {
 	return {
 		users:          totalUsers,
 		products:       totalProducts,
-		totalSales,               // excludes cancelled / refunded / returned
-		totalRevenue,             // excludes cancelled / refunded / returned
-		refundedOrders,           // count of refunded orders
-		refundedAmount,           // total $ refunded
-		byStatus,                 // full breakdown per status
+		totalSales,
+		totalRevenue,
+		refundedOrders,
+		refundedAmount,
+		byStatus,
 	};
 };
 
@@ -83,7 +79,6 @@ export const getDailySalesData = async (startDate, endDate) => {
 						$gte: startDate,
 						$lte: endDate,
 					},
-					// Exclude cancelled / refunded / returned from daily chart too
 					status: { $nin: EXCLUDED_STATUSES },
 				},
 			},
@@ -121,3 +116,4 @@ function getDatesInRange(startDate, endDate) {
 	}
 	return dates;
 }
+

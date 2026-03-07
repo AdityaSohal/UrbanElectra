@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 
-// All fields optional — address may not always be present (backward compat)
 const shippingAddressSchema = new mongoose.Schema(
 	{
 		fullName:     { type: String, default: "" },
@@ -44,11 +43,7 @@ const orderSchema = new mongoose.Schema(
 		],
 		totalAmount:     { type: Number, required: true, min: 0 },
 		stripeSessionId: { type: String, unique: true },
-
-		// Address — entirely optional, no required sub-fields
 		shippingAddress: { type: shippingAddressSchema, default: null },
-
-		// ─── Status ─────────────────────────────────────────────────
 		status: {
 			type: String,
 			enum: [
@@ -67,18 +62,12 @@ const orderSchema = new mongoose.Schema(
 			default: "pending",
 		},
 		statusHistory: { type: [statusHistorySchema], default: [] },
-
-		// ─── Tracking ────────────────────────────────────────────────
 		trackingNumber:    { type: String, default: "" },
 		trackingCarrier:   { type: String, default: "" },
 		estimatedDelivery: { type: Date,   default: null },
-
-		// ─── Cancel / Return / Exchange ──────────────────────────────
 		cancelReason:   { type: String, default: "" },
 		returnReason:   { type: String, default: "" },
 		exchangeReason: { type: String, default: "" },
-
-		// ─── Refund ──────────────────────────────────────────────────
 		stripeRefundId: { type: String, default: "" },
 		refundAmount:   { type: Number, default: 0 },
 		refundedAt:     { type: Date,   default: null },
@@ -88,3 +77,4 @@ const orderSchema = new mongoose.Schema(
 
 const Order = mongoose.model("Order", orderSchema);
 export default Order;
+

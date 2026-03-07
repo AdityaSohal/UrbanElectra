@@ -9,14 +9,14 @@ const PurchaseSuccessPage = () => {
 	const [isProcessing, setIsProcessing] = useState(true);
 	const { clearCart } = useCartStore();
 	const [error, setError] = useState(null);
-	const [orderId, setOrderId] = useState(null); // ✅ NEW: real order ID
+	const [orderId, setOrderId] = useState(null);
 
 	useEffect(() => {
 		const handleCheckoutSuccess = async (sessionId) => {
 			try {
 				const res = await axios.post("/payments/checkout-success", { sessionId });
 				clearCart();
-				if (res.data.orderId) setOrderId(res.data.orderId); // ✅ NEW
+				if (res.data.orderId) setOrderId(res.data.orderId);
 			} catch (error) {
 				console.log(error);
 			} finally {
@@ -75,7 +75,6 @@ const PurchaseSuccessPage = () => {
 					<div className='bg-gray-700 rounded-lg p-4 mb-6'>
 						<div className='flex items-center justify-between mb-2'>
 							<span className='text-sm text-gray-400'>Order number</span>
-							{/* ✅ NEW: Show real order ID */}
 							<span className='text-sm font-semibold text-emerald-400 font-mono'>
 								#{orderId ? orderId.slice(-8).toUpperCase() : "—"}
 							</span>
@@ -87,7 +86,6 @@ const PurchaseSuccessPage = () => {
 					</div>
 
 					<div className='space-y-3'>
-						{/* ✅ NEW: Link to My Orders */}
 						<Link
 							to='/my-orders'
 							className='w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center'
@@ -110,3 +108,4 @@ const PurchaseSuccessPage = () => {
 };
 
 export default PurchaseSuccessPage;
+

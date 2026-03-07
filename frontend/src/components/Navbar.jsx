@@ -39,7 +39,6 @@ const Navbar = () => {
 							</Link>
 						)}
 
-						{/* ✅ NEW: My Orders link — only for non-admin logged-in users */}
 						{user && !isAdmin && (
 							<Link
 								to={"/my-orders"}
@@ -94,3 +93,4 @@ const Navbar = () => {
 };
 
 export default Navbar;
+

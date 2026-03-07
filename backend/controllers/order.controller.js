@@ -1,21 +1,15 @@
 import Order from "../models/order.model.js";
 import { stripe } from "../lib/stripe.js";
 
-// ─────────────────────────────────────────────────────────────
-//  CUSTOMER CONTROLLERS
-// ─────────────────────────────────────────────────────────────
-
-// GET /api/orders/my-orders
 export const getMyOrders = async (req, res) => {
 	try {
 		const orders = await Order.find({ user: req.user._id })
 			.populate({
 				path: "products.product",
 				select: "name image price",
-				// If the product was deleted, populate returns null — that's fine
 			})
 			.sort({ createdAt: -1 })
-			.lean(); // plain JS objects — faster and safer for JSON serialization
+			.lean();
 
 		res.json(orders);
 	} catch (error) {
@@ -24,7 +18,6 @@ export const getMyOrders = async (req, res) => {
 	}
 };
 
-// GET /api/orders/:id
 export const getOrderById = async (req, res) => {
 	try {
 		const order = await Order.findById(req.params.id)
@@ -36,7 +29,6 @@ export const getOrderById = async (req, res) => {
 
 		if (!order) return res.status(404).json({ message: "Order not found" });
 
-		// Customers can only view their own orders; admins can view any
 		if (
 			req.user.role !== "admin" &&
 			order.user.toString() !== req.user._id.toString()
@@ -51,7 +43,6 @@ export const getOrderById = async (req, res) => {
 	}
 };
 
-// POST /api/orders/:id/cancel
 export const cancelOrder = async (req, res) => {
 	try {
 		const { reason } = req.body;
@@ -76,7 +67,6 @@ export const cancelOrder = async (req, res) => {
 
 		await order.save();
 
-		// Return populated order so frontend can update directly
 		const populated = await Order.findById(order._id)
 			.populate({ path: "products.product", select: "name image price" })
 			.lean();
@@ -88,7 +78,6 @@ export const cancelOrder = async (req, res) => {
 	}
 };
 
-// POST /api/orders/:id/return
 export const requestReturn = async (req, res) => {
 	try {
 		const { reason } = req.body;
@@ -104,7 +93,6 @@ export const requestReturn = async (req, res) => {
 			});
 		}
 
-		// 30-day return window
 		const deliveredEntry = [...order.statusHistory]
 			.reverse()
 			.find((h) => h.status === "delivered");
@@ -139,7 +127,6 @@ export const requestReturn = async (req, res) => {
 	}
 };
 
-// POST /api/orders/:id/exchange
 export const requestExchange = async (req, res) => {
 	try {
 		const { reason } = req.body;
@@ -175,11 +162,6 @@ export const requestExchange = async (req, res) => {
 	}
 };
 
-// ─────────────────────────────────────────────────────────────
-//  ADMIN CONTROLLERS
-// ─────────────────────────────────────────────────────────────
-
-// GET /api/orders/admin/all
 export const getAllOrders = async (req, res) => {
 	try {
 		const page  = parseInt(req.query.page)  || 1;
@@ -219,7 +201,6 @@ export const getAllOrders = async (req, res) => {
 	}
 };
 
-// GET /api/orders/admin/stats
 export const getOrderStats = async (req, res) => {
 	try {
 		const stats = await Order.aggregate([
@@ -244,7 +225,6 @@ export const getOrderStats = async (req, res) => {
 	}
 };
 
-// PATCH /api/orders/admin/:id/status
 export const updateOrderStatus = async (req, res) => {
 	try {
 		const { status, note } = req.body;
@@ -281,7 +261,6 @@ export const updateOrderStatus = async (req, res) => {
 	}
 };
 
-// PATCH /api/orders/admin/:id/tracking
 export const setTrackingInfo = async (req, res) => {
 	try {
 		const { trackingNumber, trackingCarrier, estimatedDelivery } = req.body;
@@ -292,7 +271,6 @@ export const setTrackingInfo = async (req, res) => {
 		if (trackingCarrier)   order.trackingCarrier = trackingCarrier;
 		if (estimatedDelivery) order.estimatedDelivery = new Date(estimatedDelivery);
 
-		// Auto-advance to shipped when tracking is first added
 		if (trackingNumber && ["confirmed", "processing"].includes(order.status)) {
 			order.status = "shipped";
 			order.statusHistory.push({
@@ -309,7 +287,6 @@ export const setTrackingInfo = async (req, res) => {
 	}
 };
 
-// POST /api/orders/admin/:id/refund
 export const processRefund = async (req, res) => {
 	try {
 		const { amount } = req.body;
@@ -348,3 +325,4 @@ export const processRefund = async (req, res) => {
 		res.status(500).json({ message: "Server error", error: error.message });
 	}
 };
+

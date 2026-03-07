@@ -12,12 +12,11 @@ const generateTokens = (userId) => {
 	return { accessToken, refreshToken };
 };
 
-// ✅ Won't crash signup/login if Redis is temporarily unreachable
 const storeRefreshToken = async (userId, refreshToken) => {
 	try {
 		await redis.set(`refresh_token:${userId}`, refreshToken, "EX", 7 * 24 * 60 * 60);
 	} catch (err) {
-		console.error("⚠️  Redis storeRefreshToken failed (non-fatal):", err.message);
+		console.error("Redis storeRefreshToken failed:", err.message);
 	}
 };
 
@@ -82,7 +81,6 @@ export const login = async (req, res) => {
 	}
 };
 
-// ✅ Fix #2: Logout no longer crashes on invalid/expired refresh token
 export const logout = async (req, res) => {
 	try {
 		const refreshToken = req.cookies.refreshToken;
@@ -91,7 +89,6 @@ export const logout = async (req, res) => {
 				const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
 				await redis.del(`refresh_token:${decoded.userId}`);
 			} catch (_) {
-				// Token is invalid or expired — still clear cookies, don't throw
 			}
 		}
 		res.clearCookie("accessToken");
@@ -139,3 +136,4 @@ export const getProfile = async (req, res) => {
 		res.status(500).json({ message: "Server error", error: error.message });
 	}
 };
+

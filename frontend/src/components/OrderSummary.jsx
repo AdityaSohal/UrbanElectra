@@ -14,17 +14,16 @@ const OrderSummary = () => {
 
 	const handlePayment = async () => {
 		if (!shippingAddress) {
-			return; // Button is disabled anyway, but guard just in case
+			return;
 		}
 
 		try {
 			const res = await axios.post("/payments/create-checkout-session", {
 				products: cart,
 				couponCode: coupon ? coupon.code : null,
-				shippingAddress, // ✅ NEW: pass address to backend
+				shippingAddress,
 			});
 
-			// Redirect to Stripe hosted checkout
 			window.location.href = res.data.url;
 		} catch (error) {
 			console.error("Error during checkout:", error);
@@ -68,7 +67,6 @@ const OrderSummary = () => {
 					</dl>
 				</div>
 
-				{/* ✅ NEW: Show hint when address is missing */}
 				{!canCheckout && (
 					<div className='flex items-center gap-2 rounded-md bg-yellow-900/40 border border-yellow-700/50 px-3 py-2'>
 						<AlertCircle className='w-4 h-4 text-yellow-400 flex-shrink-0' />
@@ -105,3 +103,4 @@ const OrderSummary = () => {
 	);
 };
 export default OrderSummary;
+

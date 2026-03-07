@@ -8,7 +8,7 @@ export const useCartStore = create((set, get) => ({
 	total: 0,
 	subtotal: 0,
 	isCouponApplied: false,
-	shippingAddress: null, // ✅ NEW: stores confirmed shipping address
+	shippingAddress: null,
 
 	setShippingAddress: (address) => {
 		set({ shippingAddress: address });

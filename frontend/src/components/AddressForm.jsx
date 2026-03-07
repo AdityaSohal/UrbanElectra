@@ -116,7 +116,6 @@ const AddressForm = ({ onAddressConfirmed }) => {
 			</div>
 
 			<div className="space-y-3">
-				{/* Full Name */}
 				<div>
 					<label className="block text-xs font-medium text-gray-300 mb-1">
 						Full Name <span className="text-red-400">*</span>
@@ -137,7 +136,6 @@ const AddressForm = ({ onAddressConfirmed }) => {
 					{errors.fullName && <p className="text-red-400 text-xs mt-1">{errors.fullName}</p>}
 				</div>
 
-				{/* Address Line 1 */}
 				<div>
 					<label className="block text-xs font-medium text-gray-300 mb-1">
 						Address Line 1 <span className="text-red-400">*</span>
@@ -158,7 +156,6 @@ const AddressForm = ({ onAddressConfirmed }) => {
 					{errors.addressLine1 && <p className="text-red-400 text-xs mt-1">{errors.addressLine1}</p>}
 				</div>
 
-				{/* Address Line 2 */}
 				<div>
 					<label className="block text-xs font-medium text-gray-300 mb-1">
 						Address Line 2 <span className="text-gray-500">(optional)</span>
@@ -178,7 +175,6 @@ const AddressForm = ({ onAddressConfirmed }) => {
 					</div>
 				</div>
 
-				{/* City + State row */}
 				<div className="grid grid-cols-2 gap-3">
 					<div>
 						<label className="block text-xs font-medium text-gray-300 mb-1">
@@ -227,7 +223,6 @@ const AddressForm = ({ onAddressConfirmed }) => {
 					</div>
 				</div>
 
-				{/* Postal Code + Country row */}
 				<div className="grid grid-cols-2 gap-3">
 					<div>
 						<label className="block text-xs font-medium text-gray-300 mb-1">
@@ -273,7 +268,6 @@ const AddressForm = ({ onAddressConfirmed }) => {
 					</div>
 				</div>
 
-				{/* Phone */}
 				<div>
 					<label className="block text-xs font-medium text-gray-300 mb-1">
 						Phone Number <span className="text-gray-500">(optional)</span>
@@ -305,3 +299,4 @@ const AddressForm = ({ onAddressConfirmed }) => {
 };
 
 export default AddressForm;
+

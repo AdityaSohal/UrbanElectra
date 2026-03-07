@@ -38,7 +38,6 @@ export const createCheckoutSession = async (req, res) => {
 			}
 		}
 
-		// Safely serialize address — Stripe metadata values must be strings under 500 chars
 		let shippingMeta = "";
 		if (shippingAddress && typeof shippingAddress === "object") {
 			try {
@@ -103,7 +102,6 @@ export const checkoutSuccess = async (req, res) => {
 			});
 		}
 
-		// Deactivate coupon if one was used
 		if (session.metadata.couponCode) {
 			await Coupon.findOneAndUpdate(
 				{ code: session.metadata.couponCode, userId: session.metadata.userId },
@@ -111,7 +109,6 @@ export const checkoutSuccess = async (req, res) => {
 			);
 		}
 
-		// Parse products safely
 		let products = [];
 		try {
 			products = JSON.parse(session.metadata.products);
@@ -119,22 +116,18 @@ export const checkoutSuccess = async (req, res) => {
 			return res.status(400).json({ message: "Failed to parse order products from session" });
 		}
 
-		// Parse shipping address safely — NEVER throw if malformed
 		let shippingAddress = null;
 		if (session.metadata.shippingAddress) {
 			try {
 				const parsed = JSON.parse(session.metadata.shippingAddress);
-				// Only set if it looks like a valid address object
 				if (parsed && typeof parsed === "object" && parsed.addressLine1) {
 					shippingAddress = parsed;
 				}
 			} catch (_) {
-				// Malformed JSON — skip address silently, don't fail the order
 				console.warn("Could not parse shippingAddress from Stripe metadata");
 			}
 		}
 
-		// Check if order already exists for this session (idempotency guard)
 		const existingOrder = await Order.findOne({ stripeSessionId: sessionId });
 		if (existingOrder) {
 			return res.status(200).json({
@@ -153,7 +146,7 @@ export const checkoutSuccess = async (req, res) => {
 			})),
 			totalAmount: session.amount_total / 100,
 			stripeSessionId: sessionId,
-			shippingAddress, // null is fine — field is optional
+			shippingAddress,
 			status: "pending",
 			statusHistory: [
 				{ status: "pending", note: "Order placed successfully" },
@@ -195,3 +188,5 @@ async function createNewCoupon(userId) {
 	await newCoupon.save();
 	return newCoupon;
 }
+
+

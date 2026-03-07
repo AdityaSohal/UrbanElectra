@@ -46,7 +46,6 @@ const AnalyticsTab = () => {
 
 	return (
 		<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-			{/* ── Top stat cards ── */}
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
 				<AnalyticsCard
 					title="Total Users"
@@ -78,7 +77,6 @@ const AnalyticsTab = () => {
 					sub="Excludes cancelled & refunded"
 					className="xl:col-span-1"
 				/>
-				{/* ✅ NEW: Refund cards */}
 				<AnalyticsCard
 					title="Refunded Orders"
 					value={analyticsData.refundedOrders.toLocaleString()}
@@ -97,7 +95,6 @@ const AnalyticsTab = () => {
 				/>
 			</div>
 
-			{/* ── Daily Sales Chart ── */}
 			<motion.div
 				className="bg-gray-800/60 rounded-lg p-6 shadow-lg"
 				initial={{ opacity: 0, y: 20 }}
@@ -160,3 +157,4 @@ const AnalyticsCard = ({ title, value, icon: Icon, color, sub, className = "" })
 		</div>
 	</motion.div>
 );
+

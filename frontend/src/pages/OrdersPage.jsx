@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-// ─── Status config ────────────────────────────────────────────
 const STATUS_CONFIG = {
 	pending:            { label: "Pending",            color: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40" },
 	confirmed:          { label: "Confirmed",          color: "bg-blue-500/20 text-blue-300 border-blue-500/40" },
@@ -33,7 +32,6 @@ const StatusBadge = ({ status }) => {
 	);
 };
 
-// ─── Action Modal ─────────────────────────────────────────────
 const ActionModal = ({ isOpen, onClose, onConfirm, title, description, loading }) => {
 	const [reason, setReason] = useState("");
 
@@ -77,10 +75,9 @@ const ActionModal = ({ isOpen, onClose, onConfirm, title, description, loading }
 	);
 };
 
-// ─── Single Order Card ────────────────────────────────────────
 const OrderCard = ({ order, onOrderUpdate }) => {
 	const [expanded, setExpanded] = useState(false);
-	const [modal, setModal]       = useState(null); // "cancel" | "return" | "exchange"
+	const [modal, setModal]       = useState(null);
 	const [loading, setLoading]   = useState(false);
 
 	const canCancel   = ["pending", "confirmed"].includes(order.status);
@@ -96,7 +93,7 @@ const OrderCard = ({ order, onOrderUpdate }) => {
 			if (modal === "exchange") res = await axios.post(`/orders/${order._id}/exchange`, { reason });
 
 			toast.success(res.data.message);
-			onOrderUpdate(res.data.order); // update parent state
+			onOrderUpdate(res.data.order);
 			setModal(null);
 		} catch (error) {
 			toast.error(error.response?.data?.message || "Something went wrong");
@@ -127,12 +124,10 @@ const OrderCard = ({ order, onOrderUpdate }) => {
 			/>
 
 			<div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden hover:border-gray-600 transition-colors">
-				{/* ── Header ── */}
 				<div
 					className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5 cursor-pointer select-none"
 					onClick={() => setExpanded((v) => !v)}
 				>
-					{/* Order ID */}
 					<div className="flex items-center gap-3">
 						<div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center flex-shrink-0">
 							<Package className="w-5 h-5 text-emerald-400" />
@@ -145,13 +140,11 @@ const OrderCard = ({ order, onOrderUpdate }) => {
 						</div>
 					</div>
 
-					{/* Date */}
 					<div className="hidden sm:block">
 						<p className="text-xs text-gray-500">Placed</p>
 						<p className="text-sm text-gray-300">{orderDate}</p>
 					</div>
 
-					{/* Items count */}
 					<div>
 						<p className="text-xs text-gray-500">Items</p>
 						<p className="text-sm text-gray-300">
@@ -159,7 +152,6 @@ const OrderCard = ({ order, onOrderUpdate }) => {
 						</p>
 					</div>
 
-					{/* Total */}
 					<div>
 						<p className="text-xs text-gray-500">Total</p>
 						<p className="text-sm font-bold text-emerald-400">
@@ -167,7 +159,6 @@ const OrderCard = ({ order, onOrderUpdate }) => {
 						</p>
 					</div>
 
-					{/* Status + chevron */}
 					<div className="flex items-center gap-2">
 						<StatusBadge status={order.status} />
 						{expanded
@@ -177,11 +168,9 @@ const OrderCard = ({ order, onOrderUpdate }) => {
 					</div>
 				</div>
 
-				{/* ── Expanded body ── */}
 				{expanded && (
 					<div className="border-t border-gray-700 p-4 sm:p-5 space-y-5">
 
-						{/* Products list */}
 						<div>
 							<p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
 								Items Ordered
@@ -219,7 +208,6 @@ const OrderCard = ({ order, onOrderUpdate }) => {
 							</div>
 						</div>
 
-						{/* Tracking info */}
 						{order.trackingNumber && (
 							<div className="bg-gray-700/50 rounded-lg p-3">
 								<div className="flex items-center gap-2 mb-1">
@@ -241,7 +229,6 @@ const OrderCard = ({ order, onOrderUpdate }) => {
 							</div>
 						)}
 
-						{/* Shipping address */}
 						{order.shippingAddress?.addressLine1 && (
 							<div className="bg-gray-700/50 rounded-lg p-3">
 								<div className="flex items-center gap-2 mb-1">
@@ -264,7 +251,6 @@ const OrderCard = ({ order, onOrderUpdate }) => {
 							</div>
 						)}
 
-						{/* Status timeline */}
 						{order.statusHistory?.length > 0 && (
 							<div>
 								<p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
@@ -295,7 +281,6 @@ const OrderCard = ({ order, onOrderUpdate }) => {
 							</div>
 						)}
 
-						{/* Notes for special statuses */}
 						{order.cancelReason && (
 							<p className="text-xs text-gray-400 italic border-l-2 border-red-500/40 pl-3">
 								Cancellation reason: {order.cancelReason}
@@ -317,7 +302,6 @@ const OrderCard = ({ order, onOrderUpdate }) => {
 							</p>
 						)}
 
-						{/* Action buttons */}
 						{(canCancel || canReturn || canExchange) && (
 							<div className="flex flex-wrap gap-2 pt-1 border-t border-gray-700">
 								{canCancel && (
@@ -356,7 +340,6 @@ const OrderCard = ({ order, onOrderUpdate }) => {
 	);
 };
 
-// ─── Main Page ────────────────────────────────────────────────
 const OrdersPage = () => {
 	const [orders, setOrders]   = useState([]);
 	const [loading, setLoading] = useState(true);
@@ -380,7 +363,6 @@ const OrdersPage = () => {
 		fetchOrders();
 	}, []);
 
-	// Called by OrderCard when an action (cancel/return/exchange) succeeds
 	const handleOrderUpdate = (updatedOrder) => {
 		setOrders((prev) =>
 			prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o))
@@ -390,7 +372,6 @@ const OrdersPage = () => {
 	return (
 		<div className="min-h-screen py-12 px-4">
 			<div className="max-w-3xl mx-auto">
-				{/* ── Page header ── */}
 				<motion.div
 					initial={{ opacity: 0, y: -16 }}
 					animate={{ opacity: 1, y: 0 }}
@@ -405,14 +386,12 @@ const OrdersPage = () => {
 					</p>
 				</motion.div>
 
-				{/* ── Loading state ── */}
 				{loading && (
 					<div className="flex justify-center py-24">
 						<Loader className="w-8 h-8 text-emerald-400 animate-spin" />
 					</div>
 				)}
 
-				{/* ── Error state ── */}
 				{!loading && error && (
 					<div className="text-center py-16 bg-gray-800 rounded-xl border border-red-500/30 px-6">
 						<XCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
@@ -427,7 +406,6 @@ const OrdersPage = () => {
 					</div>
 				)}
 
-				{/* ── Empty state ── */}
 				{!loading && !error && orders.length === 0 && (
 					<motion.div
 						className="text-center py-24"
@@ -448,7 +426,6 @@ const OrdersPage = () => {
 					</motion.div>
 				)}
 
-				{/* ── Orders list ── */}
 				{!loading && !error && orders.length > 0 && (
 					<div className="space-y-4">
 						<p className="text-sm text-gray-500">
@@ -472,3 +449,4 @@ const OrdersPage = () => {
 };
 
 export default OrdersPage;
+

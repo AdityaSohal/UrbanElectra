@@ -8,19 +8,18 @@ import {
 	RotateCcw, AlertCircle, Eye,
 } from "lucide-react";
 
-// ─── Status config (same as OrdersPage) ──────────────────────
 const STATUS_CONFIG = {
-	pending:            { label: "Pending",            color: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" },
-	confirmed:          { label: "Confirmed",          color: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
-	processing:         { label: "Processing",         color: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
-	shipped:            { label: "Shipped",            color: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" },
-	delivered:          { label: "Delivered",          color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
-	cancelled:          { label: "Cancelled",          color: "bg-red-500/20 text-red-300 border-red-500/30" },
-	return_requested:   { label: "Return Requested",   color: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
-	returned:           { label: "Returned",           color: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
+	pending: { label: "Pending", color: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" },
+	confirmed: { label: "Confirmed", color: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
+	processing: { label: "Processing", color: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
+	shipped: { label: "Shipped", color: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" },
+	delivered: { label: "Delivered", color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
+	cancelled: { label: "Cancelled", color: "bg-red-500/20 text-red-300 border-red-500/30" },
+	return_requested: { label: "Return Requested", color: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
+	returned: { label: "Returned", color: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
 	exchange_requested: { label: "Exchange Requested", color: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" },
-	exchanged:          { label: "Exchanged",          color: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" },
-	refunded:           { label: "Refunded",           color: "bg-gray-400/20 text-gray-300 border-gray-400/30" },
+	exchanged: { label: "Exchanged", color: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" },
+	refunded: { label: "Refunded", color: "bg-gray-400/20 text-gray-300 border-gray-400/30" },
 };
 
 const ALL_STATUSES = Object.keys(STATUS_CONFIG);
@@ -34,7 +33,6 @@ const StatusBadge = ({ status }) => {
 	);
 };
 
-// ─── Stat card ────────────────────────────────────────────────
 const StatCard = ({ label, value, sub, color }) => (
 	<div className={`rounded-lg p-4 border ${color} bg-gray-800`}>
 		<p className="text-xs text-gray-400 mb-1">{label}</p>
@@ -43,7 +41,6 @@ const StatCard = ({ label, value, sub, color }) => (
 	</div>
 );
 
-// ─── Tracking Modal ───────────────────────────────────────────
 const TrackingModal = ({ order, onClose, onSave }) => {
 	const [form, setForm] = useState({
 		trackingNumber: order.trackingNumber || "",
@@ -115,7 +112,6 @@ const TrackingModal = ({ order, onClose, onSave }) => {
 	);
 };
 
-// ─── Refund Modal ─────────────────────────────────────────────
 const RefundModal = ({ order, onClose, onConfirm }) => {
 	const [amount, setAmount] = useState("");
 	const { loading } = useOrderStore();
@@ -167,7 +163,6 @@ const RefundModal = ({ order, onClose, onConfirm }) => {
 	);
 };
 
-// ─── Order Detail Drawer ──────────────────────────────────────
 const OrderDetailDrawer = ({ order, onClose }) => {
 	if (!order) return null;
 	return (
@@ -187,14 +182,12 @@ const OrderDetailDrawer = ({ order, onClose }) => {
 					<button onClick={onClose}><X className="w-5 h-5 text-gray-400 hover:text-white" /></button>
 				</div>
 
-				{/* Customer */}
 				<div className="mb-5">
 					<p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Customer</p>
 					<p className="text-sm text-white">{order.user?.name}</p>
 					<p className="text-xs text-gray-400">{order.user?.email}</p>
 				</div>
 
-				{/* Products */}
 				<div className="mb-5">
 					<p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Items</p>
 					<div className="space-y-3">
@@ -215,7 +208,6 @@ const OrderDetailDrawer = ({ order, onClose }) => {
 					</div>
 				</div>
 
-				{/* Shipping */}
 				{order.shippingAddress && (
 					<div className="mb-5">
 						<p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Ship To</p>
@@ -228,7 +220,6 @@ const OrderDetailDrawer = ({ order, onClose }) => {
 					</div>
 				)}
 
-				{/* Tracking */}
 				{order.trackingNumber && (
 					<div className="mb-5 bg-gray-800 rounded-lg p-3">
 						<p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Tracking</p>
@@ -239,7 +230,6 @@ const OrderDetailDrawer = ({ order, onClose }) => {
 					</div>
 				)}
 
-				{/* Status History */}
 				{order.statusHistory?.length > 0 && (
 					<div>
 						<p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Timeline</p>
@@ -262,7 +252,6 @@ const OrderDetailDrawer = ({ order, onClose }) => {
 	);
 };
 
-// ─── Main Admin Orders Tab ────────────────────────────────────
 const OrdersTab = () => {
 	const {
 		adminOrders, adminTotal, adminTotalPages, adminPage,
@@ -296,7 +285,6 @@ const OrdersTab = () => {
 		setSearch(searchInput);
 	};
 
-	// Stat card values
 	const totalOrders = Object.values(orderStats).reduce((s, v) => s + (v.count || 0), 0);
 	const pendingCount = (orderStats.pending?.count || 0) + (orderStats.confirmed?.count || 0) + (orderStats.processing?.count || 0);
 	const returnCount = (orderStats.return_requested?.count || 0) + (orderStats.exchange_requested?.count || 0);
@@ -304,7 +292,6 @@ const OrdersTab = () => {
 
 	return (
 		<>
-			{/* Tracking Modal */}
 			{trackingModal && (
 				<TrackingModal
 					order={trackingModal}
@@ -316,7 +303,6 @@ const OrdersTab = () => {
 				/>
 			)}
 
-			{/* Refund Modal */}
 			{refundModal && (
 				<RefundModal
 					order={refundModal}
@@ -328,7 +314,6 @@ const OrdersTab = () => {
 				/>
 			)}
 
-			{/* Detail Drawer */}
 			<AnimatePresence>
 				{detailOrder && (
 					<OrderDetailDrawer order={detailOrder} onClose={() => setDetailOrder(null)} />
@@ -336,7 +321,6 @@ const OrdersTab = () => {
 			</AnimatePresence>
 
 			<div className="max-w-7xl mx-auto px-4">
-				{/* Stats row */}
 				<div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
 					<StatCard label="Total Orders" value={totalOrders} color="border-gray-700" />
 					<StatCard label="Active Orders" value={pendingCount} sub="pending + processing" color="border-yellow-700/40" />
@@ -344,9 +328,7 @@ const OrdersTab = () => {
 					<StatCard label="Total Revenue" value={`$${totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} color="border-emerald-700/40" />
 				</div>
 
-				{/* Filters */}
 				<div className="flex flex-wrap items-center gap-3 mb-5">
-					{/* Search */}
 					<form onSubmit={handleSearch} className="flex items-center gap-2 flex-1 min-w-[200px]">
 						<div className="relative flex-1">
 							<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -367,7 +349,6 @@ const OrdersTab = () => {
 						)}
 					</form>
 
-					{/* Status filter */}
 					<div className="flex flex-wrap gap-1.5">
 						<button
 							onClick={() => setStatusFilter("all")}
@@ -387,7 +368,6 @@ const OrdersTab = () => {
 					</div>
 				</div>
 
-				{/* Table */}
 				<div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
 					{loading && adminOrders.length === 0 ? (
 						<div className="flex justify-center py-16">
@@ -418,7 +398,6 @@ const OrdersTab = () => {
 												className="hover:bg-gray-700/50 transition-colors cursor-pointer"
 												onClick={() => setExpandedRow(expandedRow === order._id ? null : order._id)}
 											>
-												{/* Order ID + items preview */}
 												<td className="px-4 py-3">
 													<div className="flex items-center gap-2">
 														<div className="flex -space-x-2">
@@ -432,27 +411,21 @@ const OrdersTab = () => {
 														</div>
 													</div>
 												</td>
-												{/* Customer */}
 												<td className="px-4 py-3">
 													<p className="text-sm text-white">{order.user?.name}</p>
 													<p className="text-xs text-gray-400">{order.user?.email}</p>
 												</td>
-												{/* Date */}
 												<td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
 													{new Date(order.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
 												</td>
-												{/* Total */}
 												<td className="px-4 py-3">
 													<span className="text-sm font-semibold text-emerald-400">${order.totalAmount.toFixed(2)}</span>
 												</td>
-												{/* Status */}
 												<td className="px-4 py-3">
 													<StatusBadge status={order.status} />
 												</td>
-												{/* Actions */}
 												<td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
 													<div className="flex items-center gap-1.5 flex-wrap">
-														{/* Status select */}
 														<select
 															className="bg-gray-700 border border-gray-600 text-gray-300 text-xs rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500"
 															value={order.status}
@@ -463,7 +436,6 @@ const OrdersTab = () => {
 															))}
 														</select>
 
-														{/* Tracking button */}
 														<button
 															onClick={() => setTrackingModal(order)}
 															className="p-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 transition-colors"
@@ -472,7 +444,6 @@ const OrdersTab = () => {
 															<Truck className="w-3.5 h-3.5" />
 														</button>
 
-														{/* Refund button */}
 														<button
 															onClick={() => setRefundModal(order)}
 															className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 transition-colors"
@@ -481,7 +452,6 @@ const OrdersTab = () => {
 															<DollarSign className="w-3.5 h-3.5" />
 														</button>
 
-														{/* View detail */}
 														<button
 															onClick={() => setDetailOrder(order)}
 															className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 transition-colors"
@@ -493,7 +463,6 @@ const OrdersTab = () => {
 												</td>
 											</tr>
 
-											{/* Expanded row for quick tracking/reason info */}
 											{expandedRow === order._id && (
 												<tr key={`${order._id}-expand`} className="bg-gray-700/30">
 													<td colSpan={6} className="px-4 py-3">
@@ -548,7 +517,6 @@ const OrdersTab = () => {
 					)}
 				</div>
 
-				{/* Pagination */}
 				{adminTotalPages > 1 && (
 					<div className="flex items-center justify-between mt-4">
 						<p className="text-sm text-gray-400">
@@ -579,3 +547,4 @@ const OrdersTab = () => {
 };
 
 export default OrdersTab;
+

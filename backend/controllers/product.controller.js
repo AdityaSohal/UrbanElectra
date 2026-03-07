@@ -59,20 +59,14 @@ export const deleteProduct = async (req, res) => {
 		}
 
 		if (product.image) {
-			// ✅ Fix #4: Robust Cloudinary public ID extraction
-			// Handles URLs like: https://res.cloudinary.com/demo/image/upload/v123/products/abc.jpg
 			try {
 				const urlParts = product.image.split("/");
-				// Find the "upload" segment index and take everything after version segment
 				const uploadIndex = urlParts.indexOf("upload");
 				if (uploadIndex !== -1) {
-					// Parts after "upload" are: version (optional), folder, filename
 					const afterUpload = urlParts.slice(uploadIndex + 1);
-					// Skip version segment (starts with 'v' followed by numbers)
 					const publicIdParts = afterUpload[0]?.match(/^v\d+$/)
 						? afterUpload.slice(1)
 						: afterUpload;
-					// Join and strip file extension
 					const publicId = publicIdParts.join("/").replace(/\.[^/.]+$/, "");
 					await cloudinary.uploader.destroy(publicId);
 					console.log("Deleted image from Cloudinary:", publicId);
@@ -147,3 +141,4 @@ async function updateFeaturedProductsCache() {
 		console.log("Error in update cache function", error);
 	}
 }
+

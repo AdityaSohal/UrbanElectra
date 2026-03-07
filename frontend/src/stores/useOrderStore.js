@@ -12,7 +12,6 @@ export const useOrderStore = create((set, get) => ({
 	adminPage: 1,
 	orderStats: {},
 
-	// ─── Customer ────────────────────────────────────────────────
 	fetchMyOrders: async () => {
 		set({ loading: true });
 		try {
@@ -92,12 +91,10 @@ export const useOrderStore = create((set, get) => ({
 		}
 	},
 
-	// ─── Admin ───────────────────────────────────────────────────
 	fetchAllOrders: async (filters = {}) => {
 		set({ loading: true });
 		try {
 			const params = new URLSearchParams(
-				// Remove empty values so they don't pollute query string
 				Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== "" && v !== undefined))
 			).toString();
 			const res = await axios.get(`/orders/admin/all${params ? `?${params}` : ""}`);
@@ -177,3 +174,4 @@ export const useOrderStore = create((set, get) => ({
 		}
 	},
 }));
+
