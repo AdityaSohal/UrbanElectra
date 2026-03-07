@@ -4,7 +4,7 @@ import { stripe } from "../lib/stripe.js";
 
 export const createCheckoutSession = async (req, res) => {
 	try {
-		const { products, couponCode, shippingAddress } = req.body; // ✅ NEW: accept shippingAddress
+		const { products, couponCode, shippingAddress } = req.body;
 
 		if (!Array.isArray(products) || products.length === 0) {
 			return res.status(400).json({ error: "Invalid or empty products array" });
@@ -38,10 +38,15 @@ export const createCheckoutSession = async (req, res) => {
 			}
 		}
 
-		// ✅ NEW: Build shipping address fields for Stripe metadata (max 500 chars per field)
-		const shippingMeta = shippingAddress
-			? JSON.stringify(shippingAddress).substring(0, 490)
-			: "";
+		// Safely serialize address — Stripe metadata values must be strings under 500 chars
+		let shippingMeta = "";
+		if (shippingAddress && typeof shippingAddress === "object") {
+			try {
+				shippingMeta = JSON.stringify(shippingAddress).substring(0, 490);
+			} catch (_) {
+				shippingMeta = "";
+			}
+		}
 
 		const session = await stripe.checkout.sessions.create({
 			payment_method_types: ["card"],
@@ -52,10 +57,6 @@ export const createCheckoutSession = async (req, res) => {
 			discounts: coupon
 				? [{ coupon: await createStripeCoupon(coupon.discountPercentage) }]
 				: [],
-			// ✅ NEW: Optionally pre-fill Stripe's address collection (shows address in Stripe dashboard)
-			...(shippingAddress && {
-				shipping_address_collection: undefined, // we handle it ourselves
-			}),
 			metadata: {
 				userId: req.user._id.toString(),
 				couponCode: couponCode || "",
@@ -66,7 +67,7 @@ export const createCheckoutSession = async (req, res) => {
 						price: p.price,
 					}))
 				),
-				shippingAddress: shippingMeta, // ✅ NEW: store in Stripe metadata
+				shippingAddress: shippingMeta,
 			},
 		});
 
@@ -88,53 +89,90 @@ export const createCheckoutSession = async (req, res) => {
 export const checkoutSuccess = async (req, res) => {
 	try {
 		const { sessionId } = req.body;
+
+		if (!sessionId) {
+			return res.status(400).json({ message: "sessionId is required" });
+		}
+
 		const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-		if (session.payment_status === "paid") {
-			if (session.metadata.couponCode) {
-				await Coupon.findOneAndUpdate(
-					{ code: session.metadata.couponCode, userId: session.metadata.userId },
-					{ isActive: false }
-				);
-			}
-
-			const products = JSON.parse(session.metadata.products);
-
-			// ✅ NEW: Parse shipping address back from metadata
-			let shippingAddress = null;
-			if (session.metadata.shippingAddress) {
-				try {
-					shippingAddress = JSON.parse(session.metadata.shippingAddress);
-				} catch (_) {
-					// Malformed — skip gracefully
-				}
-			}
-
-			const newOrder = new Order({
-				user: session.metadata.userId,
-				products: products.map((product) => ({
-					product: product.id,
-					quantity: product.quantity,
-					price: product.price,
-				})),
-				totalAmount: session.amount_total / 100,
-				stripeSessionId: sessionId,
-				...(shippingAddress && { shippingAddress }), // ✅ NEW: save address on order
+		if (session.payment_status !== "paid") {
+			return res.status(400).json({
+				message: "Payment not completed",
+				status: session.payment_status,
 			});
-
-			await newOrder.save();
-
-			res.status(200).json({
-				success: true,
-				message: "Payment successful, order created, and coupon deactivated if used.",
-				orderId: newOrder._id,
-			});
-		} else {
-			res.status(400).json({ message: "Payment not completed", status: session.payment_status });
 		}
+
+		// Deactivate coupon if one was used
+		if (session.metadata.couponCode) {
+			await Coupon.findOneAndUpdate(
+				{ code: session.metadata.couponCode, userId: session.metadata.userId },
+				{ isActive: false }
+			);
+		}
+
+		// Parse products safely
+		let products = [];
+		try {
+			products = JSON.parse(session.metadata.products);
+		} catch (_) {
+			return res.status(400).json({ message: "Failed to parse order products from session" });
+		}
+
+		// Parse shipping address safely — NEVER throw if malformed
+		let shippingAddress = null;
+		if (session.metadata.shippingAddress) {
+			try {
+				const parsed = JSON.parse(session.metadata.shippingAddress);
+				// Only set if it looks like a valid address object
+				if (parsed && typeof parsed === "object" && parsed.addressLine1) {
+					shippingAddress = parsed;
+				}
+			} catch (_) {
+				// Malformed JSON — skip address silently, don't fail the order
+				console.warn("Could not parse shippingAddress from Stripe metadata");
+			}
+		}
+
+		// Check if order already exists for this session (idempotency guard)
+		const existingOrder = await Order.findOne({ stripeSessionId: sessionId });
+		if (existingOrder) {
+			return res.status(200).json({
+				success: true,
+				message: "Order already processed",
+				orderId: existingOrder._id,
+			});
+		}
+
+		const newOrder = new Order({
+			user: session.metadata.userId,
+			products: products.map((product) => ({
+				product: product.id,
+				quantity: product.quantity,
+				price: product.price,
+			})),
+			totalAmount: session.amount_total / 100,
+			stripeSessionId: sessionId,
+			shippingAddress, // null is fine — field is optional
+			status: "pending",
+			statusHistory: [
+				{ status: "pending", note: "Order placed successfully" },
+			],
+		});
+
+		await newOrder.save();
+
+		res.status(200).json({
+			success: true,
+			message: "Payment successful, order created, and coupon deactivated if used.",
+			orderId: newOrder._id,
+		});
 	} catch (error) {
 		console.error("Error processing successful checkout:", error);
-		res.status(500).json({ message: "Error processing successful checkout", error: error.message });
+		res.status(500).json({
+			message: "Error processing successful checkout",
+			error: error.message,
+		});
 	}
 };
 

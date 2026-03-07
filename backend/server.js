@@ -7,6 +7,7 @@ import cartRoutes from "./routes/cart.routes.js";
 import couponRoutes from "./routes/coupon.routes.js";
 import paymentRoutes from "./routes/payment.route.js";
 import analyticsRoutes from "./routes/analytical.route.js";
+import orderRoutes from "./routes/order.routes.js";
 import { connectDB } from "./lib/db.js";
 import cookieParser from "cookie-parser";
 
@@ -23,12 +24,13 @@ app.use(cors({
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
-app.use("/api/auth", authRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/cart", cartRoutes);
-app.use("/api/coupons", couponRoutes);
-app.use("/api/payments", paymentRoutes);
+app.use("/api/auth",      authRoutes);
+app.use("/api/products",  productRoutes);
+app.use("/api/cart",      cartRoutes);
+app.use("/api/coupons",   couponRoutes);
+app.use("/api/payments",  paymentRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/orders",    orderRoutes);
 
 app.get("/health", (req, res) => {
   res.send("Server is healthy");

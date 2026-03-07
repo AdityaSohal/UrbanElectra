@@ -9,14 +9,14 @@ const PurchaseSuccessPage = () => {
 	const [isProcessing, setIsProcessing] = useState(true);
 	const { clearCart } = useCartStore();
 	const [error, setError] = useState(null);
+	const [orderId, setOrderId] = useState(null); // ✅ NEW: real order ID
 
 	useEffect(() => {
 		const handleCheckoutSuccess = async (sessionId) => {
 			try {
-				await axios.post("/payments/checkout-success", {
-					sessionId,
-				});
+				const res = await axios.post("/payments/checkout-success", { sessionId });
 				clearCart();
+				if (res.data.orderId) setOrderId(res.data.orderId); // ✅ NEW
 			} catch (error) {
 				console.log(error);
 			} finally {
@@ -33,9 +33,17 @@ const PurchaseSuccessPage = () => {
 		}
 	}, [clearCart]);
 
-	if (isProcessing) return "Processing...";
+	if (isProcessing) return (
+		<div className="flex items-center justify-center min-h-screen">
+			<p className="text-gray-300 text-lg animate-pulse">Processing your order...</p>
+		</div>
+	);
 
-	if (error) return `Error: ${error}`;
+	if (error) return (
+		<div className="flex items-center justify-center min-h-screen">
+			<p className="text-red-400">Error: {error}</p>
+		</div>
+	);
 
 	return (
 		<div className='h-screen flex items-center justify-center px-4'>
@@ -63,10 +71,14 @@ const PurchaseSuccessPage = () => {
 					<p className='text-emerald-400 text-center text-sm mb-6'>
 						Check your email for order details and updates.
 					</p>
+
 					<div className='bg-gray-700 rounded-lg p-4 mb-6'>
 						<div className='flex items-center justify-between mb-2'>
 							<span className='text-sm text-gray-400'>Order number</span>
-							<span className='text-sm font-semibold text-emerald-400'>#12345</span>
+							{/* ✅ NEW: Show real order ID */}
+							<span className='text-sm font-semibold text-emerald-400 font-mono'>
+								#{orderId ? orderId.slice(-8).toUpperCase() : "—"}
+							</span>
 						</div>
 						<div className='flex items-center justify-between'>
 							<span className='text-sm text-gray-400'>Estimated delivery</span>
@@ -74,18 +86,18 @@ const PurchaseSuccessPage = () => {
 						</div>
 					</div>
 
-					<div className='space-y-4'>
-						<button
-							className='w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4
-             rounded-lg transition duration-300 flex items-center justify-center'
+					<div className='space-y-3'>
+						{/* ✅ NEW: Link to My Orders */}
+						<Link
+							to='/my-orders'
+							className='w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center'
 						>
 							<HandHeart className='mr-2' size={18} />
-							Thanks for trusting us!
-						</button>
+							View My Orders
+						</Link>
 						<Link
 							to={"/"}
-							className='w-full bg-gray-700 hover:bg-gray-600 text-emerald-400 font-bold py-2 px-4 
-            rounded-lg transition duration-300 flex items-center justify-center'
+							className='w-full bg-gray-700 hover:bg-gray-600 text-emerald-400 font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center'
 						>
 							Continue Shopping
 							<ArrowRight className='ml-2' size={18} />
@@ -96,4 +108,5 @@ const PurchaseSuccessPage = () => {
 		</div>
 	);
 };
+
 export default PurchaseSuccessPage;

@@ -1,15 +1,25 @@
 import mongoose from "mongoose";
 
+// All fields optional — address may not always be present (backward compat)
 const shippingAddressSchema = new mongoose.Schema(
 	{
-		fullName: { type: String, required: true },
-		addressLine1: { type: String, required: true },
+		fullName:     { type: String, default: "" },
+		addressLine1: { type: String, default: "" },
 		addressLine2: { type: String, default: "" },
-		city: { type: String, required: true },
-		state: { type: String, default: "" },
-		postalCode: { type: String, required: true },
-		country: { type: String, required: true },
-		phone: { type: String, default: "" },
+		city:         { type: String, default: "" },
+		state:        { type: String, default: "" },
+		postalCode:   { type: String, default: "" },
+		country:      { type: String, default: "" },
+		phone:        { type: String, default: "" },
+	},
+	{ _id: false }
+);
+
+const statusHistorySchema = new mongoose.Schema(
+	{
+		status:    { type: String, required: true },
+		changedAt: { type: Date,   default: Date.now },
+		note:      { type: String, default: "" },
 	},
 	{ _id: false }
 );
@@ -28,36 +38,53 @@ const orderSchema = new mongoose.Schema(
 					ref: "Product",
 					required: true,
 				},
-				quantity: {
-					type: Number,
-					required: true,
-					min: 1,
-				},
-				price: {
-					type: Number,
-					required: true,
-					min: 0,
-				},
+				quantity: { type: Number, required: true, min: 1 },
+				price:    { type: Number, required: true, min: 0 },
 			},
 		],
-		totalAmount: {
-			type: Number,
-			required: true,
-			min: 0,
-		},
-		stripeSessionId: {
+		totalAmount:     { type: Number, required: true, min: 0 },
+		stripeSessionId: { type: String, unique: true },
+
+		// Address — entirely optional, no required sub-fields
+		shippingAddress: { type: shippingAddressSchema, default: null },
+
+		// ─── Status ─────────────────────────────────────────────────
+		status: {
 			type: String,
-			unique: true,
+			enum: [
+				"pending",
+				"confirmed",
+				"processing",
+				"shipped",
+				"delivered",
+				"cancelled",
+				"return_requested",
+				"returned",
+				"exchange_requested",
+				"exchanged",
+				"refunded",
+			],
+			default: "pending",
 		},
-		// ✅ NEW: shipping address embedded in order
-		shippingAddress: {
-			type: shippingAddressSchema,
-			required: false, // optional for backward compat with existing orders
-		},
+		statusHistory: { type: [statusHistorySchema], default: [] },
+
+		// ─── Tracking ────────────────────────────────────────────────
+		trackingNumber:    { type: String, default: "" },
+		trackingCarrier:   { type: String, default: "" },
+		estimatedDelivery: { type: Date,   default: null },
+
+		// ─── Cancel / Return / Exchange ──────────────────────────────
+		cancelReason:   { type: String, default: "" },
+		returnReason:   { type: String, default: "" },
+		exchangeReason: { type: String, default: "" },
+
+		// ─── Refund ──────────────────────────────────────────────────
+		stripeRefundId: { type: String, default: "" },
+		refundAmount:   { type: Number, default: 0 },
+		refundedAt:     { type: Date,   default: null },
 	},
 	{ timestamps: true }
 );
 
 const Order = mongoose.model("Order", orderSchema);
-
 export default Order;
