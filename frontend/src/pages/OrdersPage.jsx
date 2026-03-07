@@ -1,34 +1,33 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useOrderStore } from "../stores/useOrderStore";
+import axios from "../lib/axios";
+import toast from "react-hot-toast";
 import {
 	Package, ChevronDown, ChevronUp, Truck, MapPin,
 	XCircle, RotateCcw, RefreshCw, Clock, CheckCircle,
-	AlertCircle, Loader, ShoppingBag, ArrowRight,
+	Loader, ShoppingBag, ArrowRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 // ─── Status config ────────────────────────────────────────────
 const STATUS_CONFIG = {
-	pending:           { label: "Pending",           color: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",  icon: Clock },
-	confirmed:         { label: "Confirmed",         color: "bg-blue-500/20 text-blue-300 border-blue-500/30",        icon: CheckCircle },
-	processing:        { label: "Processing",        color: "bg-purple-500/20 text-purple-300 border-purple-500/30",  icon: Package },
-	shipped:           { label: "Shipped",           color: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",  icon: Truck },
-	delivered:         { label: "Delivered",         color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30", icon: CheckCircle },
-	cancelled:         { label: "Cancelled",         color: "bg-red-500/20 text-red-300 border-red-500/30",           icon: XCircle },
-	return_requested:  { label: "Return Requested",  color: "bg-orange-500/20 text-orange-300 border-orange-500/30",  icon: RotateCcw },
-	returned:          { label: "Returned",          color: "bg-orange-500/20 text-orange-300 border-orange-500/30",  icon: RotateCcw },
-	exchange_requested:{ label: "Exchange Requested",color: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",        icon: RefreshCw },
-	exchanged:         { label: "Exchanged",         color: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",        icon: RefreshCw },
-	refunded:          { label: "Refunded",          color: "bg-gray-500/20 text-gray-300 border-gray-500/30",        icon: CheckCircle },
+	pending:            { label: "Pending",            color: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40" },
+	confirmed:          { label: "Confirmed",          color: "bg-blue-500/20 text-blue-300 border-blue-500/40" },
+	processing:         { label: "Processing",         color: "bg-purple-500/20 text-purple-300 border-purple-500/40" },
+	shipped:            { label: "Shipped",            color: "bg-indigo-500/20 text-indigo-300 border-indigo-500/40" },
+	delivered:          { label: "Delivered",          color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" },
+	cancelled:          { label: "Cancelled",          color: "bg-red-500/20 text-red-300 border-red-500/40" },
+	return_requested:   { label: "Return Requested",   color: "bg-orange-500/20 text-orange-300 border-orange-500/40" },
+	returned:           { label: "Returned",           color: "bg-orange-500/20 text-orange-300 border-orange-500/40" },
+	exchange_requested: { label: "Exchange Requested", color: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40" },
+	exchanged:          { label: "Exchanged",          color: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40" },
+	refunded:           { label: "Refunded",           color: "bg-gray-500/20 text-gray-300 border-gray-500/40" },
 };
 
 const StatusBadge = ({ status }) => {
-	const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
-	const Icon = cfg.icon;
+	const cfg = STATUS_CONFIG[status] || { label: status, color: "bg-gray-500/20 text-gray-300 border-gray-500/40" };
 	return (
-		<span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cfg.color}`}>
-			<Icon className="w-3 h-3" />
+		<span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${cfg.color}`}>
 			{cfg.label}
 		</span>
 	);
@@ -37,15 +36,17 @@ const StatusBadge = ({ status }) => {
 // ─── Action Modal ─────────────────────────────────────────────
 const ActionModal = ({ isOpen, onClose, onConfirm, title, description, loading }) => {
 	const [reason, setReason] = useState("");
+
+	useEffect(() => {
+		if (!isOpen) setReason("");
+	}, [isOpen]);
+
 	if (!isOpen) return null;
+
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
 			<div className="absolute inset-0 bg-black/70" onClick={onClose} />
-			<motion.div
-				className="relative bg-gray-800 rounded-xl border border-gray-700 p-6 w-full max-w-md shadow-2xl"
-				initial={{ opacity: 0, scale: 0.95 }}
-				animate={{ opacity: 1, scale: 1 }}
-			>
+			<div className="relative bg-gray-800 rounded-xl border border-gray-700 p-6 w-full max-w-md shadow-2xl z-10">
 				<h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
 				<p className="text-sm text-gray-400 mb-4">{description}</p>
 				<textarea
@@ -63,7 +64,7 @@ const ActionModal = ({ isOpen, onClose, onConfirm, title, description, loading }
 						Go Back
 					</button>
 					<button
-						onClick={() => { onConfirm(reason); setReason(""); }}
+						onClick={() => onConfirm(reason)}
 						disabled={loading}
 						className="flex-1 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
 					>
@@ -71,43 +72,48 @@ const ActionModal = ({ isOpen, onClose, onConfirm, title, description, loading }
 						Confirm
 					</button>
 				</div>
-			</motion.div>
+			</div>
 		</div>
 	);
 };
 
-// ─── Order Card ───────────────────────────────────────────────
-const OrderCard = ({ order }) => {
+// ─── Single Order Card ────────────────────────────────────────
+const OrderCard = ({ order, onOrderUpdate }) => {
 	const [expanded, setExpanded] = useState(false);
-	const [modal, setModal] = useState(null); // "cancel" | "return" | "exchange"
-	const { cancelOrder, requestReturn, requestExchange, loading } = useOrderStore();
+	const [modal, setModal]       = useState(null); // "cancel" | "return" | "exchange"
+	const [loading, setLoading]   = useState(false);
 
-	const canCancel = ["pending", "confirmed"].includes(order.status);
-	const canReturn = order.status === "delivered";
+	const canCancel   = ["pending", "confirmed"].includes(order.status);
+	const canReturn   = order.status === "delivered";
 	const canExchange = order.status === "delivered";
 
 	const handleAction = async (reason) => {
-		let success = false;
-		if (modal === "cancel") success = await cancelOrder(order._id, reason);
-		if (modal === "return") success = await requestReturn(order._id, reason);
-		if (modal === "exchange") success = await requestExchange(order._id, reason);
-		if (success) setModal(null);
+		setLoading(true);
+		try {
+			let res;
+			if (modal === "cancel")   res = await axios.post(`/orders/${order._id}/cancel`,   { reason });
+			if (modal === "return")   res = await axios.post(`/orders/${order._id}/return`,   { reason });
+			if (modal === "exchange") res = await axios.post(`/orders/${order._id}/exchange`, { reason });
+
+			toast.success(res.data.message);
+			onOrderUpdate(res.data.order); // update parent state
+			setModal(null);
+		} catch (error) {
+			toast.error(error.response?.data?.message || "Something went wrong");
+		} finally {
+			setLoading(false);
+		}
 	};
 
 	const modalConfig = {
-		cancel: {
-			title: "Cancel Order",
-			description: "Are you sure you want to cancel this order? This action cannot be undone.",
-		},
-		return: {
-			title: "Request a Return",
-			description: "Please describe the reason for your return. Our team will review your request within 2-3 business days.",
-		},
-		exchange: {
-			title: "Request an Exchange",
-			description: "Please describe what you'd like to exchange and why. Our team will contact you with available options.",
-		},
+		cancel:   { title: "Cancel Order",        description: "Are you sure you want to cancel this order? This cannot be undone." },
+		return:   { title: "Request a Return",     description: "Describe why you want to return this item. Our team will review within 2-3 business days." },
+		exchange: { title: "Request an Exchange",  description: "Describe what you'd like to exchange and why. We'll contact you with options." },
 	};
+
+	const orderDate = new Date(order.createdAt).toLocaleDateString("en-US", {
+		year: "numeric", month: "short", day: "numeric",
+	});
 
 	return (
 		<>
@@ -120,208 +126,271 @@ const OrderCard = ({ order }) => {
 				loading={loading}
 			/>
 
-			<motion.div
-				className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden hover:border-gray-600 transition-colors duration-200"
-				initial={{ opacity: 0, y: 16 }}
-				animate={{ opacity: 1, y: 0 }}
-			>
-				{/* Header row */}
+			<div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden hover:border-gray-600 transition-colors">
+				{/* ── Header ── */}
 				<div
-					className="flex flex-wrap items-center justify-between gap-3 p-4 cursor-pointer"
+					className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5 cursor-pointer select-none"
 					onClick={() => setExpanded((v) => !v)}
 				>
+					{/* Order ID */}
 					<div className="flex items-center gap-3">
 						<div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center flex-shrink-0">
 							<Package className="w-5 h-5 text-emerald-400" />
 						</div>
 						<div>
-							<p className="text-xs text-gray-400">Order ID</p>
-							<p className="text-sm font-mono text-white">#{order._id.slice(-8).toUpperCase()}</p>
+							<p className="text-xs text-gray-500">Order</p>
+							<p className="text-sm font-mono font-semibold text-white">
+								#{order._id.slice(-8).toUpperCase()}
+							</p>
 						</div>
 					</div>
 
+					{/* Date */}
 					<div className="hidden sm:block">
-						<p className="text-xs text-gray-400">Date</p>
-						<p className="text-sm text-white">
-							{new Date(order.createdAt).toLocaleDateString("en-US", {
-								year: "numeric", month: "short", day: "numeric",
-							})}
+						<p className="text-xs text-gray-500">Placed</p>
+						<p className="text-sm text-gray-300">{orderDate}</p>
+					</div>
+
+					{/* Items count */}
+					<div>
+						<p className="text-xs text-gray-500">Items</p>
+						<p className="text-sm text-gray-300">
+							{order.products.length} item{order.products.length !== 1 ? "s" : ""}
 						</p>
 					</div>
 
+					{/* Total */}
 					<div>
-						<p className="text-xs text-gray-400">Items</p>
-						<p className="text-sm text-white">{order.products.length} item{order.products.length !== 1 ? "s" : ""}</p>
+						<p className="text-xs text-gray-500">Total</p>
+						<p className="text-sm font-bold text-emerald-400">
+							${order.totalAmount.toFixed(2)}
+						</p>
 					</div>
 
-					<div>
-						<p className="text-xs text-gray-400">Total</p>
-						<p className="text-sm font-semibold text-emerald-400">${order.totalAmount.toFixed(2)}</p>
-					</div>
-
+					{/* Status + chevron */}
 					<div className="flex items-center gap-2">
 						<StatusBadge status={order.status} />
-						{expanded ? (
-							<ChevronUp className="w-4 h-4 text-gray-400" />
-						) : (
-							<ChevronDown className="w-4 h-4 text-gray-400" />
-						)}
+						{expanded
+							? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
+							: <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+						}
 					</div>
 				</div>
 
-				{/* Expanded detail */}
-				<AnimatePresence>
-					{expanded && (
-						<motion.div
-							initial={{ height: 0, opacity: 0 }}
-							animate={{ height: "auto", opacity: 1 }}
-							exit={{ height: 0, opacity: 0 }}
-							transition={{ duration: 0.25 }}
-							className="overflow-hidden"
-						>
-							<div className="border-t border-gray-700 p-4 space-y-5">
-								{/* Products */}
-								<div>
-									<p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Items Ordered</p>
-									<div className="space-y-3">
-										{order.products.map((item, i) => (
-											<div key={i} className="flex items-center gap-3">
+				{/* ── Expanded body ── */}
+				{expanded && (
+					<div className="border-t border-gray-700 p-4 sm:p-5 space-y-5">
+
+						{/* Products list */}
+						<div>
+							<p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+								Items Ordered
+							</p>
+							<div className="space-y-3">
+								{order.products.map((item, i) => {
+									const product = item.product;
+									return (
+										<div key={i} className="flex items-center gap-3">
+											{product?.image ? (
 												<img
-													src={item.product?.image}
-													alt={item.product?.name}
+													src={product.image}
+													alt={product.name}
 													className="w-14 h-14 rounded-lg object-cover bg-gray-700 flex-shrink-0"
 												/>
-												<div className="flex-1 min-w-0">
-													<p className="text-sm font-medium text-white truncate">
-														{item.product?.name || "Product unavailable"}
-													</p>
-													<p className="text-xs text-gray-400">
-														Qty: {item.quantity} × ${item.price.toFixed(2)}
-													</p>
+											) : (
+												<div className="w-14 h-14 rounded-lg bg-gray-700 flex-shrink-0 flex items-center justify-center">
+													<Package className="w-6 h-6 text-gray-500" />
 												</div>
-												<p className="text-sm font-semibold text-emerald-400 flex-shrink-0">
-													${(item.quantity * item.price).toFixed(2)}
+											)}
+											<div className="flex-1 min-w-0">
+												<p className="text-sm font-medium text-white truncate">
+													{product?.name || "Product unavailable"}
+												</p>
+												<p className="text-xs text-gray-400">
+													Qty: {item.quantity} &times; ${item.price.toFixed(2)}
 												</p>
 											</div>
-										))}
-									</div>
-								</div>
-
-								{/* Tracking */}
-								{order.trackingNumber && (
-									<div className="bg-gray-700/50 rounded-lg p-3">
-										<div className="flex items-center gap-2 mb-1">
-											<Truck className="w-4 h-4 text-emerald-400" />
-											<p className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Tracking</p>
-										</div>
-										<p className="text-sm text-white font-mono">{order.trackingCarrier} — {order.trackingNumber}</p>
-										{order.estimatedDelivery && (
-											<p className="text-xs text-gray-400 mt-1">
-												Est. delivery: {new Date(order.estimatedDelivery).toLocaleDateString()}
+											<p className="text-sm font-semibold text-emerald-400 flex-shrink-0">
+												${(item.quantity * item.price).toFixed(2)}
 											</p>
-										)}
-									</div>
-								)}
-
-								{/* Shipping address */}
-								{order.shippingAddress && (
-									<div className="bg-gray-700/50 rounded-lg p-3">
-										<div className="flex items-center gap-2 mb-1">
-											<MapPin className="w-4 h-4 text-emerald-400" />
-											<p className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Ship To</p>
 										</div>
-										<p className="text-sm text-white">{order.shippingAddress.fullName}</p>
-										<p className="text-xs text-gray-400">
-											{order.shippingAddress.addressLine1}
-											{order.shippingAddress.addressLine2 ? `, ${order.shippingAddress.addressLine2}` : ""},
-											{" "}{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode},
-											{" "}{order.shippingAddress.country}
-										</p>
-									</div>
-								)}
+									);
+								})}
+							</div>
+						</div>
 
-								{/* Status Timeline */}
-								{order.statusHistory?.length > 0 && (
-									<div>
-										<p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Order Timeline</p>
-										<div className="space-y-2">
-											{[...order.statusHistory].reverse().map((h, i) => (
-												<div key={i} className="flex items-start gap-3">
-													<div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${i === 0 ? "bg-emerald-400" : "bg-gray-600"}`} />
-													<div>
-														<p className="text-xs font-medium text-white capitalize">{h.status.replace(/_/g, " ")}</p>
-														{h.note && <p className="text-xs text-gray-400">{h.note}</p>}
-														<p className="text-xs text-gray-500">
-															{new Date(h.changedAt).toLocaleString()}
-														</p>
-													</div>
-												</div>
-											))}
-										</div>
-									</div>
-								)}
-
-								{/* Action buttons */}
-								<div className="flex flex-wrap gap-2 pt-1">
-									{canCancel && (
-										<button
-											onClick={() => setModal("cancel")}
-											className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-medium transition-colors"
-										>
-											<XCircle className="w-3.5 h-3.5" />
-											Cancel Order
-										</button>
-									)}
-									{canReturn && (
-										<button
-											onClick={() => setModal("return")}
-											className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-medium transition-colors"
-										>
-											<RotateCcw className="w-3.5 h-3.5" />
-											Return Item
-										</button>
-									)}
-									{canExchange && (
-										<button
-											onClick={() => setModal("exchange")}
-											className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-medium transition-colors"
-										>
-											<RefreshCw className="w-3.5 h-3.5" />
-											Exchange Item
-										</button>
-									)}
+						{/* Tracking info */}
+						{order.trackingNumber && (
+							<div className="bg-gray-700/50 rounded-lg p-3">
+								<div className="flex items-center gap-2 mb-1">
+									<Truck className="w-4 h-4 text-emerald-400" />
+									<p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+										Tracking
+									</p>
 								</div>
-
-								{/* Cancellation/return reasons */}
-								{order.cancelReason && (
-									<p className="text-xs text-gray-400 italic">Cancellation reason: {order.cancelReason}</p>
-								)}
-								{order.returnReason && (
-									<p className="text-xs text-gray-400 italic">Return reason: {order.returnReason}</p>
-								)}
-								{order.exchangeReason && (
-									<p className="text-xs text-gray-400 italic">Exchange reason: {order.exchangeReason}</p>
+								<p className="text-sm text-white font-mono">
+									{order.trackingCarrier && `${order.trackingCarrier} — `}
+									{order.trackingNumber}
+								</p>
+								{order.estimatedDelivery && (
+									<p className="text-xs text-gray-400 mt-1">
+										Estimated delivery:{" "}
+										{new Date(order.estimatedDelivery).toLocaleDateString()}
+									</p>
 								)}
 							</div>
-						</motion.div>
-					)}
-				</AnimatePresence>
-			</motion.div>
+						)}
+
+						{/* Shipping address */}
+						{order.shippingAddress?.addressLine1 && (
+							<div className="bg-gray-700/50 rounded-lg p-3">
+								<div className="flex items-center gap-2 mb-1">
+									<MapPin className="w-4 h-4 text-emerald-400" />
+									<p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+										Shipping To
+									</p>
+								</div>
+								<p className="text-sm text-white">{order.shippingAddress.fullName}</p>
+								<p className="text-xs text-gray-400">
+									{order.shippingAddress.addressLine1}
+									{order.shippingAddress.addressLine2 && `, ${order.shippingAddress.addressLine2}`},
+									{" "}{order.shippingAddress.city}
+									{order.shippingAddress.state && `, ${order.shippingAddress.state}`}{" "}
+									{order.shippingAddress.postalCode}, {order.shippingAddress.country}
+								</p>
+								{order.shippingAddress.phone && (
+									<p className="text-xs text-gray-400 mt-0.5">{order.shippingAddress.phone}</p>
+								)}
+							</div>
+						)}
+
+						{/* Status timeline */}
+						{order.statusHistory?.length > 0 && (
+							<div>
+								<p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+									Order Timeline
+								</p>
+								<div className="space-y-2.5">
+									{[...order.statusHistory].reverse().map((h, i) => (
+										<div key={i} className="flex items-start gap-3">
+											<div
+												className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+													i === 0 ? "bg-emerald-400" : "bg-gray-600"
+												}`}
+											/>
+											<div>
+												<p className="text-xs font-semibold text-white capitalize">
+													{h.status.replace(/_/g, " ")}
+												</p>
+												{h.note && (
+													<p className="text-xs text-gray-400">{h.note}</p>
+												)}
+												<p className="text-xs text-gray-500">
+													{new Date(h.changedAt).toLocaleString()}
+												</p>
+											</div>
+										</div>
+									))}
+								</div>
+							</div>
+						)}
+
+						{/* Notes for special statuses */}
+						{order.cancelReason && (
+							<p className="text-xs text-gray-400 italic border-l-2 border-red-500/40 pl-3">
+								Cancellation reason: {order.cancelReason}
+							</p>
+						)}
+						{order.returnReason && (
+							<p className="text-xs text-gray-400 italic border-l-2 border-orange-500/40 pl-3">
+								Return reason: {order.returnReason}
+							</p>
+						)}
+						{order.exchangeReason && (
+							<p className="text-xs text-gray-400 italic border-l-2 border-cyan-500/40 pl-3">
+								Exchange reason: {order.exchangeReason}
+							</p>
+						)}
+						{order.status === "refunded" && order.refundAmount > 0 && (
+							<p className="text-xs text-gray-400 italic border-l-2 border-gray-500/40 pl-3">
+								Refund of ${order.refundAmount.toFixed(2)} has been processed back to your payment method.
+							</p>
+						)}
+
+						{/* Action buttons */}
+						{(canCancel || canReturn || canExchange) && (
+							<div className="flex flex-wrap gap-2 pt-1 border-t border-gray-700">
+								{canCancel && (
+									<button
+										onClick={() => setModal("cancel")}
+										className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-medium transition-colors"
+									>
+										<XCircle className="w-3.5 h-3.5" />
+										Cancel Order
+									</button>
+								)}
+								{canReturn && (
+									<button
+										onClick={() => setModal("return")}
+										className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-medium transition-colors"
+									>
+										<RotateCcw className="w-3.5 h-3.5" />
+										Return Item
+									</button>
+								)}
+								{canExchange && (
+									<button
+										onClick={() => setModal("exchange")}
+										className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 text-xs font-medium transition-colors"
+									>
+										<RefreshCw className="w-3.5 h-3.5" />
+										Exchange Item
+									</button>
+								)}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
 		</>
 	);
 };
 
 // ─── Main Page ────────────────────────────────────────────────
 const OrdersPage = () => {
-	const { orders, fetchMyOrders, loading } = useOrderStore();
+	const [orders, setOrders]   = useState([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError]     = useState(null);
 
 	useEffect(() => {
-		fetchMyOrders();
-	}, [fetchMyOrders]);
+		const fetchOrders = async () => {
+			try {
+				setLoading(true);
+				setError(null);
+				const res = await axios.get("/orders/my-orders");
+				setOrders(res.data);
+			} catch (err) {
+				console.error("Failed to fetch orders:", err);
+				setError(err.response?.data?.message || "Failed to load your orders. Please try again.");
+				toast.error("Could not load orders");
+			} finally {
+				setLoading(false);
+			}
+		};
+		fetchOrders();
+	}, []);
+
+	// Called by OrderCard when an action (cancel/return/exchange) succeeds
+	const handleOrderUpdate = (updatedOrder) => {
+		setOrders((prev) =>
+			prev.map((o) => (o._id === updatedOrder._id ? updatedOrder : o))
+		);
+	};
 
 	return (
 		<div className="min-h-screen py-12 px-4">
 			<div className="max-w-3xl mx-auto">
+				{/* ── Page header ── */}
 				<motion.div
 					initial={{ opacity: 0, y: -16 }}
 					animate={{ opacity: 1, y: 0 }}
@@ -336,11 +405,30 @@ const OrdersPage = () => {
 					</p>
 				</motion.div>
 
-				{loading && orders.length === 0 ? (
+				{/* ── Loading state ── */}
+				{loading && (
 					<div className="flex justify-center py-24">
 						<Loader className="w-8 h-8 text-emerald-400 animate-spin" />
 					</div>
-				) : orders.length === 0 ? (
+				)}
+
+				{/* ── Error state ── */}
+				{!loading && error && (
+					<div className="text-center py-16 bg-gray-800 rounded-xl border border-red-500/30 px-6">
+						<XCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+						<p className="text-red-400 font-medium mb-2">Something went wrong</p>
+						<p className="text-gray-400 text-sm mb-5">{error}</p>
+						<button
+							onClick={() => window.location.reload()}
+							className="px-5 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+						>
+							Try Again
+						</button>
+					</div>
+				)}
+
+				{/* ── Empty state ── */}
+				{!loading && !error && orders.length === 0 && (
 					<motion.div
 						className="text-center py-24"
 						initial={{ opacity: 0 }}
@@ -348,7 +436,9 @@ const OrdersPage = () => {
 					>
 						<ShoppingBag className="w-16 h-16 text-gray-600 mx-auto mb-4" />
 						<h2 className="text-xl font-semibold text-gray-300 mb-2">No orders yet</h2>
-						<p className="text-gray-500 mb-6">When you place an order, it will appear here.</p>
+						<p className="text-gray-500 mb-6">
+							When you place an order, it will appear here.
+						</p>
 						<Link
 							to="/"
 							className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors"
@@ -356,16 +446,22 @@ const OrdersPage = () => {
 							Start Shopping <ArrowRight className="w-4 h-4" />
 						</Link>
 					</motion.div>
-				) : (
+				)}
+
+				{/* ── Orders list ── */}
+				{!loading && !error && orders.length > 0 && (
 					<div className="space-y-4">
+						<p className="text-sm text-gray-500">
+							{orders.length} order{orders.length !== 1 ? "s" : ""} found
+						</p>
 						{orders.map((order, i) => (
 							<motion.div
 								key={order._id}
 								initial={{ opacity: 0, y: 16 }}
 								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: i * 0.05 }}
+								transition={{ delay: i * 0.04 }}
 							>
-								<OrderCard order={order} />
+								<OrderCard order={order} onOrderUpdate={handleOrderUpdate} />
 							</motion.div>
 						))}
 					</div>
