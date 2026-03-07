@@ -6,6 +6,7 @@ import CartItem from "../components/CartItem";
 import PeopleAlsoBought from "../components/PeopleAlsoBought";
 import OrderSummary from "../components/OrderSummary";
 import GiftCouponCard from "../components/GiftCouponCard";
+import AddressForm from "../components/AddressForm"; // ✅ NEW
 
 const CartPage = () => {
 	const { cart } = useCartStore();
@@ -41,6 +42,8 @@ const CartPage = () => {
 						>
 							<OrderSummary />
 							<GiftCouponCard />
+							{/* ✅ NEW: Address form sits below coupon card */}
+							<AddressForm />
 						</motion.div>
 					)}
 				</div>

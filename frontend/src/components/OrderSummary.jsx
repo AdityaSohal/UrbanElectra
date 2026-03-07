@@ -1,11 +1,11 @@
 import { motion } from "framer-motion";
 import { useCartStore } from "../stores/useCartStore";
 import { Link } from "react-router-dom";
-import { MoveRight } from "lucide-react";
+import { MoveRight, AlertCircle } from "lucide-react";
 import axios from "../lib/axios";
 
 const OrderSummary = () => {
-	const { total, subtotal, coupon, isCouponApplied, cart } = useCartStore();
+	const { total, subtotal, coupon, isCouponApplied, cart, shippingAddress } = useCartStore();
 
 	const savings = subtotal - total;
 	const formattedSubtotal = subtotal.toFixed(2);
@@ -13,18 +13,25 @@ const OrderSummary = () => {
 	const formattedSavings = savings.toFixed(2);
 
 	const handlePayment = async () => {
+		if (!shippingAddress) {
+			return; // Button is disabled anyway, but guard just in case
+		}
+
 		try {
 			const res = await axios.post("/payments/create-checkout-session", {
 				products: cart,
 				couponCode: coupon ? coupon.code : null,
+				shippingAddress, // ✅ NEW: pass address to backend
 			});
 
-			// New Stripe approach — redirect to hosted checkout URL directly
+			// Redirect to Stripe hosted checkout
 			window.location.href = res.data.url;
 		} catch (error) {
 			console.error("Error during checkout:", error);
 		}
 	};
+
+	const canCheckout = !!shippingAddress;
 
 	return (
 		<motion.div
@@ -61,11 +68,24 @@ const OrderSummary = () => {
 					</dl>
 				</div>
 
+				{/* ✅ NEW: Show hint when address is missing */}
+				{!canCheckout && (
+					<div className='flex items-center gap-2 rounded-md bg-yellow-900/40 border border-yellow-700/50 px-3 py-2'>
+						<AlertCircle className='w-4 h-4 text-yellow-400 flex-shrink-0' />
+						<p className='text-xs text-yellow-300'>Please confirm your shipping address below to proceed.</p>
+					</div>
+				)}
+
 				<motion.button
-					className='flex w-full items-center justify-center rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-300'
-					whileHover={{ scale: 1.05 }}
-					whileTap={{ scale: 0.95 }}
+					className={`flex w-full items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium text-white focus:outline-none focus:ring-4 focus:ring-emerald-300 transition-all duration-200 ${
+						canCheckout
+							? "bg-emerald-600 hover:bg-emerald-700 cursor-pointer"
+							: "bg-gray-600 cursor-not-allowed opacity-60"
+					}`}
+					whileHover={canCheckout ? { scale: 1.05 } : {}}
+					whileTap={canCheckout ? { scale: 0.95 } : {}}
 					onClick={handlePayment}
+					disabled={!canCheckout}
 				>
 					Proceed to Checkout
 				</motion.button>

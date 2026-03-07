@@ -8,6 +8,11 @@ export const useCartStore = create((set, get) => ({
 	total: 0,
 	subtotal: 0,
 	isCouponApplied: false,
+	shippingAddress: null, // ✅ NEW: stores confirmed shipping address
+
+	setShippingAddress: (address) => {
+		set({ shippingAddress: address });
+	},
 
 	getMyCoupon: async () => {
 		try {
@@ -25,7 +30,6 @@ export const useCartStore = create((set, get) => ({
 			get().calculateTotals();
 			toast.success("Coupon applied successfully");
 		} catch (error) {
-			// ✅ Fix #8: safe optional chaining — won't crash if server is down
 			toast.error(error.response?.data?.message || "Failed to apply coupon");
 		}
 	},
@@ -43,13 +47,12 @@ export const useCartStore = create((set, get) => ({
 			get().calculateTotals();
 		} catch (error) {
 			set({ cart: [] });
-			// ✅ Fix #8: safe optional chaining
 			toast.error(error.response?.data?.message || "An error occurred");
 		}
 	},
 
 	clearCart: async () => {
-		set({ cart: [], coupon: null, total: 0, subtotal: 0 });
+		set({ cart: [], coupon: null, total: 0, subtotal: 0, shippingAddress: null });
 	},
 
 	addToCart: async (product) => {
@@ -68,7 +71,6 @@ export const useCartStore = create((set, get) => ({
 			});
 			get().calculateTotals();
 		} catch (error) {
-			// ✅ Fix #8: safe optional chaining
 			toast.error(error.response?.data?.message || "An error occurred");
 		}
 	},

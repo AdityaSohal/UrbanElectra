@@ -4,7 +4,8 @@ import { stripe } from "../lib/stripe.js";
 
 export const createCheckoutSession = async (req, res) => {
 	try {
-		const { products, couponCode } = req.body;
+		const { products, couponCode, shippingAddress } = req.body; // ✅ NEW: accept shippingAddress
+
 		if (!Array.isArray(products) || products.length === 0) {
 			return res.status(400).json({ error: "Invalid or empty products array" });
 		}
@@ -37,6 +38,11 @@ export const createCheckoutSession = async (req, res) => {
 			}
 		}
 
+		// ✅ NEW: Build shipping address fields for Stripe metadata (max 500 chars per field)
+		const shippingMeta = shippingAddress
+			? JSON.stringify(shippingAddress).substring(0, 490)
+			: "";
+
 		const session = await stripe.checkout.sessions.create({
 			payment_method_types: ["card"],
 			line_items: lineItems,
@@ -46,6 +52,10 @@ export const createCheckoutSession = async (req, res) => {
 			discounts: coupon
 				? [{ coupon: await createStripeCoupon(coupon.discountPercentage) }]
 				: [],
+			// ✅ NEW: Optionally pre-fill Stripe's address collection (shows address in Stripe dashboard)
+			...(shippingAddress && {
+				shipping_address_collection: undefined, // we handle it ourselves
+			}),
 			metadata: {
 				userId: req.user._id.toString(),
 				couponCode: couponCode || "",
@@ -56,6 +66,7 @@ export const createCheckoutSession = async (req, res) => {
 						price: p.price,
 					}))
 				),
+				shippingAddress: shippingMeta, // ✅ NEW: store in Stripe metadata
 			},
 		});
 
@@ -63,7 +74,6 @@ export const createCheckoutSession = async (req, res) => {
 			await createNewCoupon(req.user._id);
 		}
 
-		// ✅ Return session.url so frontend can redirect directly (new Stripe API)
 		res.status(200).json({
 			id: session.id,
 			url: session.url,
@@ -79,6 +89,7 @@ export const checkoutSuccess = async (req, res) => {
 	try {
 		const { sessionId } = req.body;
 		const session = await stripe.checkout.sessions.retrieve(sessionId);
+
 		if (session.payment_status === "paid") {
 			if (session.metadata.couponCode) {
 				await Coupon.findOneAndUpdate(
@@ -86,7 +97,19 @@ export const checkoutSuccess = async (req, res) => {
 					{ isActive: false }
 				);
 			}
+
 			const products = JSON.parse(session.metadata.products);
+
+			// ✅ NEW: Parse shipping address back from metadata
+			let shippingAddress = null;
+			if (session.metadata.shippingAddress) {
+				try {
+					shippingAddress = JSON.parse(session.metadata.shippingAddress);
+				} catch (_) {
+					// Malformed — skip gracefully
+				}
+			}
+
 			const newOrder = new Order({
 				user: session.metadata.userId,
 				products: products.map((product) => ({
@@ -96,8 +119,11 @@ export const checkoutSuccess = async (req, res) => {
 				})),
 				totalAmount: session.amount_total / 100,
 				stripeSessionId: sessionId,
+				...(shippingAddress && { shippingAddress }), // ✅ NEW: save address on order
 			});
+
 			await newOrder.save();
+
 			res.status(200).json({
 				success: true,
 				message: "Payment successful, order created, and coupon deactivated if used.",
