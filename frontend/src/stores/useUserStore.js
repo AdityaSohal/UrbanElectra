@@ -16,8 +16,10 @@ export const useUserStore = create((set, get) => ({
 		}
 
 		try {
-			const res = await axios.post("/auth/signup", { name, email, password });
-			set({ user: res.data, loading: false });
+			await axios.post("/auth/signup", { name, email, password });
+			set({ loading: false });
+			toast.success("Account created! Please log in.");
+			window.location.href = "/login";
 		} catch (error) {
 			set({ loading: false });
 			toast.error(error.response?.data?.message || "An error occurred");
@@ -103,4 +105,3 @@ axios.interceptors.response.use(
 		return Promise.reject(error);
 	}
 );
-
