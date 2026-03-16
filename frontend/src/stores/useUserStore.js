@@ -16,10 +16,8 @@ export const useUserStore = create((set, get) => ({
 		}
 
 		try {
-			await axios.post("/auth/signup", { name, email, password });
-			set({ loading: false });
-			toast.success("Account created! Please log in.");
-			window.location.href = "/login";
+			const res = await axios.post("/auth/signup", { name, email, password });
+			set({ user: res.data, loading: false });
 		} catch (error) {
 			set({ loading: false });
 			toast.error(error.response?.data?.message || "An error occurred");
