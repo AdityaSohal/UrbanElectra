@@ -1,6 +1,9 @@
 import { redis } from "../lib/redis.js";
 import User from "../models/user.model.js";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const generateTokens = (userId) => {
 	const accessToken = jwt.sign({ userId }, process.env.ACCESS_TOKEN_SECRET, {
@@ -135,5 +138,40 @@ export const getProfile = async (req, res) => {
 	} catch (error) {
 		res.status(500).json({ message: "Server error", error: error.message });
 	}
+};
+
+export const googleAuth = async (req, res) => {
+    const { credential } = req.body;
+    try {
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const { email, name, picture } = ticket.getPayload();
+
+        let user = await User.findOne({ email });
+        if (!user) {
+            // Random password — Google users never use it
+            user = await User.create({
+                name,
+                email,
+                password: Math.random().toString(36).slice(-16) + "Aa1!",
+            });
+        }
+
+        const { accessToken, refreshToken } = generateTokens(user._id);
+        await storeRefreshToken(user._id, refreshToken);
+        setCookies(res, accessToken, refreshToken);
+
+        res.json({
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+        });
+    } catch (error) {
+        console.log("Error in googleAuth:", error.message);
+        res.status(401).json({ message: "Invalid Google credential" });
+    }
 };
 
