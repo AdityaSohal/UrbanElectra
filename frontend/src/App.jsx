@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import AdminPage from "./pages/AdminPage";
 import CategoryPage from "./pages/CategoryPage";
 import OrdersPage from "./pages/OrdersPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 
 import Navbar from "./components/Navbar";
 import { Toaster } from "react-hot-toast";
@@ -47,6 +48,10 @@ function App() {
 					<Route path='/signup' element={!user ? <SignUpPage /> : <Navigate to='/' />} />
 					<Route path='/login' element={!user ? <LoginPage /> : <Navigate to='/' />} />
 					<Route
+						path='/forgot-password'
+						element={!user ? <ForgotPasswordPage /> : <Navigate to='/' />}
+					/>
+					<Route
 						path='/secret-dashboard'
 						element={user?.role === "admin" ? <AdminPage /> : <Navigate to='/login' />}
 					/>
@@ -69,4 +74,3 @@ function App() {
 }
 
 export default App;
-
