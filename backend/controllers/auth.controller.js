@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { OAuth2Client } from "google-auth-library";
 import { sendOtpEmail } from "../lib/mailer.js";
+import cloudinary from "../lib/cloudinary.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -43,6 +44,15 @@ const setCookies = (res, accessToken, refreshToken) => {
 	});
 };
 
+const formatUser = (user) => ({
+	_id: user._id,
+	name: user.name,
+	email: user.email,
+	role: user.role,
+	profilePic: user.profilePic || "",
+	googleProfilePic: user.googleProfilePic || "",
+});
+
 // ─── Auth controllers ─────────────────────────────────────────────────────────
 
 export const signup = async (req, res, next) => {
@@ -56,12 +66,7 @@ export const signup = async (req, res, next) => {
 		const { accessToken, refreshToken } = generateTokens(user._id);
 		await storeRefreshToken(user._id, refreshToken);
 		setCookies(res, accessToken, refreshToken);
-		res.status(201).json({
-			_id: user._id,
-			name: user.name,
-			email: user.email,
-			role: user.role,
-		});
+		res.status(201).json(formatUser(user));
 	} catch (error) {
 		console.log("Error in signup controller", error.message, error.stack);
 		next(error);
@@ -76,12 +81,7 @@ export const login = async (req, res) => {
 			const { accessToken, refreshToken } = generateTokens(user._id);
 			await storeRefreshToken(user._id, refreshToken);
 			setCookies(res, accessToken, refreshToken);
-			res.json({
-				_id: user._id,
-				name: user.name,
-				email: user.email,
-				role: user.role,
-			});
+			res.json(formatUser(user));
 		} else {
 			res.status(400).json({ message: "Invalid email or password" });
 		}
@@ -140,7 +140,7 @@ export const refreshToken = async (req, res) => {
 
 export const getProfile = async (req, res) => {
 	try {
-		res.json(req.user);
+		res.json(formatUser(req.user));
 	} catch (error) {
 		res.status(500).json({ message: "Server error", error: error.message });
 	}
@@ -153,7 +153,7 @@ export const googleAuth = async (req, res) => {
 			idToken: credential,
 			audience: process.env.GOOGLE_CLIENT_ID,
 		});
-		const { email, name } = ticket.getPayload();
+		const { email, name, picture } = ticket.getPayload();
 
 		let user = await User.findOne({ email });
 		if (!user) {
@@ -161,22 +161,66 @@ export const googleAuth = async (req, res) => {
 				name,
 				email,
 				password: Math.random().toString(36).slice(-16) + "Aa1!",
+				googleProfilePic: picture || "",
 			});
+		} else if (picture && !user.googleProfilePic) {
+			user.googleProfilePic = picture;
+			await user.save();
 		}
 
 		const { accessToken, refreshToken } = generateTokens(user._id);
 		await storeRefreshToken(user._id, refreshToken);
 		setCookies(res, accessToken, refreshToken);
 
-		res.json({
-			_id: user._id,
-			name: user.name,
-			email: user.email,
-			role: user.role,
-		});
+		res.json(formatUser(user));
 	} catch (error) {
 		console.log("Error in googleAuth:", error.message);
 		res.status(401).json({ message: "Invalid Google credential" });
+	}
+};
+
+// ─── Update Profile Picture ───────────────────────────────────────────────────
+
+export const updateProfilePic = async (req, res) => {
+	try {
+		const { image } = req.body;
+		if (!image) {
+			return res.status(400).json({ message: "Image is required" });
+		}
+
+		const user = await User.findById(req.user._id);
+		if (!user) return res.status(404).json({ message: "User not found" });
+
+		// Delete old profile pic from Cloudinary if it exists
+		if (user.profilePic) {
+			try {
+				const urlParts = user.profilePic.split("/");
+				const uploadIndex = urlParts.indexOf("upload");
+				if (uploadIndex !== -1) {
+					const afterUpload = urlParts.slice(uploadIndex + 1);
+					const publicIdParts = afterUpload[0]?.match(/^v\d+$/)
+						? afterUpload.slice(1)
+						: afterUpload;
+					const publicId = publicIdParts.join("/").replace(/\.[^/.]+$/, "");
+					await cloudinary.uploader.destroy(publicId);
+				}
+			} catch (err) {
+				console.log("Error deleting old profile pic from Cloudinary:", err.message);
+			}
+		}
+
+		const cloudinaryResponse = await cloudinary.uploader.upload(image, {
+			folder: "profile_pics",
+			transformation: [{ width: 200, height: 200, crop: "fill", gravity: "face" }],
+		});
+
+		user.profilePic = cloudinaryResponse.secure_url;
+		await user.save();
+
+		res.json(formatUser(user));
+	} catch (error) {
+		console.error("Error in updateProfilePic:", error.message);
+		res.status(500).json({ message: "Server error", error: error.message });
 	}
 };
 
@@ -188,27 +232,23 @@ export const forgotPassword = async (req, res) => {
 		if (!email) return res.status(400).json({ message: "Email is required" });
 
 		const user = await User.findOne({ email: email.toLowerCase().trim() });
-		// Always respond the same way to prevent email enumeration
 		if (!user) {
 			return res.status(200).json({
 				message: "If that email is registered, an OTP has been sent.",
 			});
 		}
 
-		// Delete any existing OTPs for this email
 		await Otp.deleteMany({ email: email.toLowerCase().trim() });
 
-		// Generate a 6-digit OTP
 		const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-		// Store hashed OTP in DB (expires in 10 minutes)
 		const salt = await bcrypt.genSalt(10);
 		const hashedOtp = await bcrypt.hash(otp, salt);
 
 		await Otp.create({
 			email: email.toLowerCase().trim(),
 			otp: hashedOtp,
-			expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min
+			expiresAt: new Date(Date.now() + 10 * 60 * 1000),
 		});
 
 		await sendOtpEmail(email, otp);
@@ -243,7 +283,6 @@ export const verifyOtp = async (req, res) => {
 			return res.status(400).json({ message: "Invalid OTP. Please try again." });
 		}
 
-		// Mark OTP as verified so the reset step can proceed
 		record.verified = true;
 		await record.save();
 
@@ -275,7 +314,6 @@ export const resetPassword = async (req, res) => {
 			return res.status(400).json({ message: "Session expired. Please start over." });
 		}
 
-		// Double-check OTP one more time for security
 		const isMatch = await bcrypt.compare(otp, record.otp);
 		if (!isMatch) {
 			return res.status(400).json({ message: "Invalid OTP." });
@@ -284,13 +322,11 @@ export const resetPassword = async (req, res) => {
 		const user = await User.findOne({ email: email.toLowerCase().trim() });
 		if (!user) return res.status(404).json({ message: "User not found." });
 
-		user.password = newPassword; // pre-save hook will hash it
+		user.password = newPassword;
 		await user.save();
 
-		// Clean up OTP record
 		await Otp.deleteOne({ _id: record._id });
 
-		// Invalidate all existing sessions
 		await redis.del(`refresh_token:${user._id}`);
 
 		res.status(200).json({ message: "Password reset successfully. Please log in." });

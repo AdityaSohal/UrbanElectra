@@ -36,16 +36,16 @@ export const useUserStore = create((set, get) => ({
 	},
 
 	googleLogin: async (credential) => {
-    set({ loading: true });
-    try {
-        const res = await axios.post("/auth/google", { credential });
-        set({ user: res.data, loading: false });
-        toast.success("Logged in with Google!");
-    } catch (error) {
-        set({ loading: false });
-        toast.error(error.response?.data?.message || "Google login failed");
-    }
-},
+		set({ loading: true });
+		try {
+			const res = await axios.post("/auth/google", { credential });
+			set({ user: res.data, loading: false });
+			toast.success("Logged in with Google!");
+		} catch (error) {
+			set({ loading: false });
+			toast.error(error.response?.data?.message || "Google login failed");
+		}
+	},
 
 	logout: async () => {
 		try {
@@ -78,6 +78,20 @@ export const useUserStore = create((set, get) => ({
 		} catch (error) {
 			set({ user: null, checkingAuth: false });
 			throw error;
+		}
+	},
+
+	updateProfilePic: async (imageBase64) => {
+		set({ loading: true });
+		try {
+			const res = await axios.put("/auth/profile-pic", { image: imageBase64 });
+			set({ user: res.data, loading: false });
+			toast.success("Profile picture updated!");
+			return true;
+		} catch (error) {
+			set({ loading: false });
+			toast.error(error.response?.data?.message || "Failed to update profile picture");
+			return false;
 		}
 	},
 }));

@@ -9,6 +9,7 @@ import {
 	forgotPassword,
 	verifyOtp,
 	resetPassword,
+	updateProfilePic,
 } from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 
@@ -20,6 +21,7 @@ router.post("/logout",         logout);
 router.post("/refresh-token",  refreshToken);
 router.get( "/profile",        protectRoute, getProfile);
 router.post("/google",         googleAuth);
+router.put( "/profile-pic",    protectRoute, updateProfilePic);
 
 // Forgot password flow
 router.post("/forgot-password", forgotPassword);  // Step 1 – send OTP
