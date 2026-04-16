@@ -1,4 +1,4 @@
-import { ShoppingCart, UserPlus, LogIn, LogOut, Lock, Package, Camera, X, Loader } from "lucide-react";
+import { ShoppingCart, UserPlus, LogIn, LogOut, Lock, Package, Camera, Trash2, Loader } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useUserStore } from "../stores/useUserStore";
 import { useCartStore } from "../stores/useCartStore";
@@ -38,15 +38,15 @@ const UserAvatar = ({ user, size = "md" }) => {
 
 // ─── Profile Dropdown ─────────────────────────────────────────────────────────
 const ProfileDropdown = ({ user, onClose }) => {
-	const { logout, updateProfilePic, loading } = useUserStore();
+	const { logout, updateProfilePic, deleteProfilePic, loading } = useUserStore();
 	const fileInputRef = useRef(null);
 	const [uploading, setUploading] = useState(false);
+	const [deleting, setDeleting] = useState(false);
 
 	const handleImageChange = async (e) => {
 		const file = e.target.files[0];
 		if (!file) return;
 
-		// Validate file size (max 5MB)
 		if (file.size > 5 * 1024 * 1024) {
 			import("react-hot-toast").then(({ default: toast }) =>
 				toast.error("Image must be under 5MB")
@@ -59,9 +59,16 @@ const ProfileDropdown = ({ user, onClose }) => {
 		reader.onloadend = async () => {
 			const success = await updateProfilePic(reader.result);
 			setUploading(false);
-			if (success) onClose();
+			// reset input so same file can be re-selected
+			if (fileInputRef.current) fileInputRef.current.value = "";
 		};
 		reader.readAsDataURL(file);
+	};
+
+	const handleDeletePic = async () => {
+		setDeleting(true);
+		await deleteProfilePic();
+		setDeleting(false);
 	};
 
 	const handleLogout = async () => {
@@ -74,6 +81,11 @@ const ProfileDropdown = ({ user, onClose }) => {
 		? user.name.trim().split(/\s+/).slice(0, 2).map((w) => w[0].toUpperCase()).join("")
 		: user.email?.[0]?.toUpperCase() || "?";
 
+	// User has a custom uploaded pic (not just googleProfilePic)
+	const hasCustomPic = !!user.profilePic;
+	// Has any pic at all
+	const hasPic = !!picUrl;
+
 	return (
 		<div className="absolute right-0 top-full mt-2 w-72 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
 			{/* Header */}
@@ -81,7 +93,7 @@ const ProfileDropdown = ({ user, onClose }) => {
 				<div className="flex items-center gap-3">
 					{/* Large avatar with upload overlay */}
 					<div className="relative group flex-shrink-0">
-						{picUrl ? (
+						{hasPic ? (
 							<img
 								src={picUrl}
 								alt={user.name}
@@ -93,10 +105,10 @@ const ProfileDropdown = ({ user, onClose }) => {
 							</div>
 						)}
 
-						{/* Upload overlay */}
+						{/* Upload overlay on hover */}
 						<button
 							onClick={() => fileInputRef.current?.click()}
-							disabled={uploading}
+							disabled={uploading || deleting}
 							className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
 							title="Change profile picture"
 						>
@@ -119,14 +131,36 @@ const ProfileDropdown = ({ user, onClose }) => {
 					<div className="flex-1 min-w-0">
 						<p className="text-white font-semibold truncate">{user.name}</p>
 						<p className="text-gray-400 text-xs truncate">{user.email}</p>
-						<button
-							onClick={() => fileInputRef.current?.click()}
-							disabled={uploading}
-							className="mt-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1"
-						>
-							<Camera className="w-3 h-3" />
-							{uploading ? "Uploading..." : "Change photo"}
-						</button>
+						<div className="flex items-center gap-2 mt-1 flex-wrap">
+							<button
+								onClick={() => fileInputRef.current?.click()}
+								disabled={uploading || deleting}
+								className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 disabled:opacity-50"
+							>
+								<Camera className="w-3 h-3" />
+								{uploading ? "Uploading..." : "Change photo"}
+							</button>
+
+							{/* Only show delete if user has a custom uploaded profile pic */}
+							{hasCustomPic && (
+								<>
+									<span className="text-gray-600 text-xs">·</span>
+									<button
+										onClick={handleDeletePic}
+										disabled={uploading || deleting}
+										className="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1 disabled:opacity-50"
+										title="Remove profile picture"
+									>
+										{deleting ? (
+											<Loader className="w-3 h-3 animate-spin" />
+										) : (
+											<Trash2 className="w-3 h-3" />
+										)}
+										{deleting ? "Removing..." : "Remove"}
+									</button>
+								</>
+							)}
+						</div>
 					</div>
 				</div>
 			</div>
@@ -172,7 +206,6 @@ const ProfileDropdown = ({ user, onClose }) => {
 // ─── Navbar ───────────────────────────────────────────────────────────────────
 const Navbar = () => {
 	const { user } = useUserStore();
-	const isAdmin = user?.role === "admin";
 	const { cart } = useCartStore();
 	const [dropdownOpen, setDropdownOpen] = useState(false);
 

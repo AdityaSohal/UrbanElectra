@@ -94,6 +94,22 @@ export const useUserStore = create((set, get) => ({
 			return false;
 		}
 	},
+
+	// Delete the custom uploaded profile pic.
+	// Falls back to googleProfilePic if it exists, then to initials.
+	deleteProfilePic: async () => {
+		set({ loading: true });
+		try {
+			const res = await axios.delete("/auth/profile-pic");
+			set({ user: res.data, loading: false });
+			toast.success("Profile picture removed");
+			return true;
+		} catch (error) {
+			set({ loading: false });
+			toast.error(error.response?.data?.message || "Failed to remove profile picture");
+			return false;
+		}
+	},
 }));
 
 let isRefreshing = false;
@@ -107,7 +123,8 @@ axios.interceptors.response.use(
 			originalRequest._retry = true;
 
 			try {
-				if (refreshPromise) {
+				if (isRefreshing) {
+					// Wait for the existing refresh to finish, then retry
 					await refreshPromise;
 					return axios(originalRequest);
 				}

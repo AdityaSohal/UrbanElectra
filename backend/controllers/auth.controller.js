@@ -191,7 +191,7 @@ export const updateProfilePic = async (req, res) => {
 		const user = await User.findById(req.user._id);
 		if (!user) return res.status(404).json({ message: "User not found" });
 
-		// Delete old profile pic from Cloudinary if it exists
+		// Delete old custom profile pic from Cloudinary if it exists
 		if (user.profilePic) {
 			try {
 				const urlParts = user.profilePic.split("/");
@@ -220,6 +220,47 @@ export const updateProfilePic = async (req, res) => {
 		res.json(formatUser(user));
 	} catch (error) {
 		console.error("Error in updateProfilePic:", error.message);
+		res.status(500).json({ message: "Server error", error: error.message });
+	}
+};
+
+// ─── Delete Profile Picture ───────────────────────────────────────────────────
+// Removes the custom uploaded pic from Cloudinary and clears it from the user.
+// After deletion: if the user has a googleProfilePic it will show that,
+// otherwise the frontend falls back to initials.
+
+export const deleteProfilePic = async (req, res) => {
+	try {
+		const user = await User.findById(req.user._id);
+		if (!user) return res.status(404).json({ message: "User not found" });
+
+		if (!user.profilePic) {
+			return res.status(400).json({ message: "No custom profile picture to remove" });
+		}
+
+		// Delete from Cloudinary
+		try {
+			const urlParts = user.profilePic.split("/");
+			const uploadIndex = urlParts.indexOf("upload");
+			if (uploadIndex !== -1) {
+				const afterUpload = urlParts.slice(uploadIndex + 1);
+				const publicIdParts = afterUpload[0]?.match(/^v\d+$/)
+					? afterUpload.slice(1)
+					: afterUpload;
+				const publicId = publicIdParts.join("/").replace(/\.[^/.]+$/, "");
+				await cloudinary.uploader.destroy(publicId);
+			}
+		} catch (err) {
+			console.log("Error deleting profile pic from Cloudinary:", err.message);
+			// Still clear it from DB even if Cloudinary deletion fails
+		}
+
+		user.profilePic = "";
+		await user.save();
+
+		res.json(formatUser(user));
+	} catch (error) {
+		console.error("Error in deleteProfilePic:", error.message);
 		res.status(500).json({ message: "Server error", error: error.message });
 	}
 };

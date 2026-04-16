@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { UserPlus, Mail, Lock, User, ArrowRight, Loader } from "lucide-react";
 import { motion } from "framer-motion";
@@ -12,7 +12,41 @@ const SignUpPage = () => {
 		confirmPassword: "",
 	});
 
-	const { signup, loading } = useUserStore();
+	const { signup, googleLogin, loading } = useUserStore();
+	const googleBtnRef = useRef(null);
+
+	useEffect(() => {
+		const script = document.createElement("script");
+		script.src = "https://accounts.google.com/gsi/client";
+		script.async = true;
+		script.defer = true;
+
+		script.onload = () => {
+			if (!window.google) return;
+
+			window.google.accounts.id.initialize({
+				client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+				callback: (response) => googleLogin(response.credential),
+			});
+
+			if (googleBtnRef.current) {
+				window.google.accounts.id.renderButton(googleBtnRef.current, {
+					theme: "filled_black",
+					size: "large",
+					width: googleBtnRef.current?.offsetWidth || 400,
+					text: "signup_with",
+				});
+			}
+		};
+
+		document.head.appendChild(script);
+
+		return () => {
+			if (document.head.contains(script)) {
+				document.head.removeChild(script);
+			}
+		};
+	}, [googleLogin]);
 
 	const handleSubmit = (e) => {
 		e.preventDefault();
@@ -53,7 +87,7 @@ const SignUpPage = () => {
 									value={formData.name}
 									onChange={(e) => setFormData({ ...formData, name: e.target.value })}
 									className='block w-full px-3 py-2 pl-10 bg-gray-700 border border-gray-600 rounded-md shadow-sm
-									 placeholder-gray-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm'
+									 placeholder-gray-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm text-white'
 									placeholder='John Doe'
 								/>
 							</div>
@@ -76,7 +110,7 @@ const SignUpPage = () => {
 									className=' block w-full px-3 py-2 pl-10 bg-gray-700 border border-gray-600 
 									rounded-md shadow-sm
 									 placeholder-gray-400 focus:outline-none focus:ring-emerald-500 
-									 focus:border-emerald-500 sm:text-sm'
+									 focus:border-emerald-500 sm:text-sm text-white'
 									placeholder='you@example.com'
 								/>
 							</div>
@@ -97,7 +131,7 @@ const SignUpPage = () => {
 									value={formData.password}
 									onChange={(e) => setFormData({ ...formData, password: e.target.value })}
 									className=' block w-full px-3 py-2 pl-10 bg-gray-700 border border-gray-600 
-									rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm'
+									rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm text-white'
 									placeholder='••••••••'
 								/>
 							</div>
@@ -118,7 +152,7 @@ const SignUpPage = () => {
 									value={formData.confirmPassword}
 									onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
 									className=' block w-full px-3 py-2 pl-10 bg-gray-700 border
-									 border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm'
+									 border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm text-white'
 									placeholder='••••••••'
 								/>
 							</div>
@@ -145,6 +179,22 @@ const SignUpPage = () => {
 							)}
 						</button>
 					</form>
+
+					{/* GOOGLE SIGN UP BLOCK */}
+					<div className='mt-6'>
+						<div className='relative'>
+							<div className='absolute inset-0 flex items-center'>
+								<div className='w-full border-t border-gray-600' />
+							</div>
+							<div className='relative flex justify-center text-sm'>
+								<span className='px-2 bg-gray-800 text-gray-400'>Or sign up with</span>
+							</div>
+						</div>
+
+						<div className='mt-4'>
+							<div ref={googleBtnRef} className='w-full flex justify-center' />
+						</div>
+					</div>
 
 					<p className='mt-8 text-center text-sm text-gray-400'>
 						Already have an account?{" "}
