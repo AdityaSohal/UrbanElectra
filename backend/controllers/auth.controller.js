@@ -179,7 +179,6 @@ export const googleAuth = async (req, res) => {
 	}
 };
 
-// ─── Update Profile Picture ───────────────────────────────────────────────────
 
 export const updateProfilePic = async (req, res) => {
 	try {
@@ -191,7 +190,6 @@ export const updateProfilePic = async (req, res) => {
 		const user = await User.findById(req.user._id);
 		if (!user) return res.status(404).json({ message: "User not found" });
 
-		// Delete old custom profile pic from Cloudinary if it exists
 		if (user.profilePic) {
 			try {
 				const urlParts = user.profilePic.split("/");
@@ -224,11 +222,6 @@ export const updateProfilePic = async (req, res) => {
 	}
 };
 
-// ─── Delete Profile Picture ───────────────────────────────────────────────────
-// Removes the custom uploaded pic from Cloudinary and clears it from the user.
-// After deletion: if the user has a googleProfilePic it will show that,
-// otherwise the frontend falls back to initials.
-
 export const deleteProfilePic = async (req, res) => {
 	try {
 		const user = await User.findById(req.user._id);
@@ -238,7 +231,6 @@ export const deleteProfilePic = async (req, res) => {
 			return res.status(400).json({ message: "No custom profile picture to remove" });
 		}
 
-		// Delete from Cloudinary
 		try {
 			const urlParts = user.profilePic.split("/");
 			const uploadIndex = urlParts.indexOf("upload");
@@ -252,7 +244,6 @@ export const deleteProfilePic = async (req, res) => {
 			}
 		} catch (err) {
 			console.log("Error deleting profile pic from Cloudinary:", err.message);
-			// Still clear it from DB even if Cloudinary deletion fails
 		}
 
 		user.profilePic = "";
@@ -265,7 +256,6 @@ export const deleteProfilePic = async (req, res) => {
 	}
 };
 
-// ─── Forgot Password – Step 1: send OTP ───────────────────────────────────────
 
 export const forgotPassword = async (req, res) => {
 	try {
@@ -301,8 +291,6 @@ export const forgotPassword = async (req, res) => {
 	}
 };
 
-// ─── Forgot Password – Step 2: verify OTP ────────────────────────────────────
-
 export const verifyOtp = async (req, res) => {
 	try {
 		const { email, otp } = req.body;
@@ -334,7 +322,6 @@ export const verifyOtp = async (req, res) => {
 	}
 };
 
-// ─── Forgot Password – Step 3: reset password ────────────────────────────────
 
 export const resetPassword = async (req, res) => {
 	try {
