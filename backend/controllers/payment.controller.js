@@ -1,6 +1,8 @@
 import Coupon from "../models/coupon.model.js";
 import Order from "../models/order.model.js";
+import Product from "../models/product.model.js";
 import { stripe } from "../lib/stripe.js";
+import { sendOrderConfirmationEmail } from "../lib/mailer.js";
 
 export const createCheckoutSession = async (req, res) => {
 	try {
@@ -11,12 +13,10 @@ export const createCheckoutSession = async (req, res) => {
 		}
 
 		let totalAmount = 0;
-		let originalTotal = 0;
 
 		const lineItems = products.map((product) => {
-			const amount = Math.round(product.price * 100);
+			const amount = Math.round(product.price * 100); 
 			totalAmount += amount * product.quantity;
-			originalTotal += amount * product.quantity;
 			return {
 				price_data: {
 					currency: "usd",
@@ -30,10 +30,36 @@ export const createCheckoutSession = async (req, res) => {
 			};
 		});
 
+		const originalTotalCents = totalAmount; 
 		let coupon = null;
 		if (couponCode) {
-			coupon = await Coupon.findOne({ code: couponCode, userId: req.user._id, isActive: true });
+			const upperCode = couponCode.trim().toUpperCase();
+
+			coupon = await Coupon.findOne({
+				code: upperCode,
+				userId: req.user._id,
+				isActive: true,
+				expirationDate: { $gt: new Date() },
+			});
+
+			if (!coupon) {
+				coupon = await Coupon.findOne({
+					code: upperCode,
+					userId: null,
+					isActive: true,
+					expirationDate: { $gt: new Date() },
+				});
+			}
+
 			if (coupon) {
+				if (coupon.minimumOrderAmount > 0) {
+					const orderTotalUSD = totalAmount / 100;
+					if (orderTotalUSD < coupon.minimumOrderAmount) {
+						return res.status(400).json({
+							message: `This coupon requires a minimum order of $${coupon.minimumOrderAmount}`,
+						});
+					}
+				}
 				totalAmount -= Math.round((totalAmount * coupon.discountPercentage) / 100);
 			}
 		}
@@ -59,6 +85,7 @@ export const createCheckoutSession = async (req, res) => {
 			metadata: {
 				userId: req.user._id.toString(),
 				couponCode: couponCode || "",
+				couponId: coupon ? coupon._id.toString() : "",
 				products: JSON.stringify(
 					products.map((p) => ({
 						id: p._id,
@@ -70,8 +97,8 @@ export const createCheckoutSession = async (req, res) => {
 			},
 		});
 
-		if (originalTotal >= 20000) {
-			await createNewCoupon(req.user._id);
+		if (originalTotalCents / 100 >= 200) {
+			await createNewGiftCoupon(req.user._id);
 		}
 
 		res.status(200).json({
@@ -89,9 +116,7 @@ export const checkoutSuccess = async (req, res) => {
 	try {
 		const { sessionId } = req.body;
 
-		if (!sessionId) {
-			return res.status(400).json({ message: "sessionId is required" });
-		}
+		if (!sessionId) return res.status(400).json({ message: "sessionId is required" });
 
 		const session = await stripe.checkout.sessions.retrieve(sessionId);
 
@@ -102,11 +127,36 @@ export const checkoutSuccess = async (req, res) => {
 			});
 		}
 
-		if (session.metadata.couponCode) {
-			await Coupon.findOneAndUpdate(
-				{ code: session.metadata.couponCode, userId: session.metadata.userId },
-				{ isActive: false }
-			);
+		// Idempotency: don't double-create
+		const existingOrder = await Order.findOne({ stripeSessionId: sessionId });
+		if (existingOrder) {
+			return res.status(200).json({
+				success: true,
+				message: "Order already processed",
+				orderId: existingOrder._id,
+			});
+		}
+
+		// ── Deactivate personal coupon OR mark global coupon as used ──────────
+		if (session.metadata.couponCode && session.metadata.couponId) {
+			const usedCoupon = await Coupon.findById(session.metadata.couponId);
+			if (usedCoupon) {
+				if (usedCoupon.userId !== null) {
+					// Personal: deactivate
+					usedCoupon.isActive = false;
+				} else {
+					// Global: track usage
+					usedCoupon.usedCount += 1;
+					if (!usedCoupon.usedBy.includes(session.metadata.userId)) {
+						usedCoupon.usedBy.push(session.metadata.userId);
+					}
+					// Auto-deactivate if max uses reached
+					if (usedCoupon.maxUses !== null && usedCoupon.usedCount >= usedCoupon.maxUses) {
+						usedCoupon.isActive = false;
+					}
+				}
+				await usedCoupon.save();
+			}
 		}
 
 		let products = [];
@@ -123,18 +173,7 @@ export const checkoutSuccess = async (req, res) => {
 				if (parsed && typeof parsed === "object" && parsed.addressLine1) {
 					shippingAddress = parsed;
 				}
-			} catch (_) {
-				console.warn("Could not parse shippingAddress from Stripe metadata");
-			}
-		}
-
-		const existingOrder = await Order.findOne({ stripeSessionId: sessionId });
-		if (existingOrder) {
-			return res.status(200).json({
-				success: true,
-				message: "Order already processed",
-				orderId: existingOrder._id,
-			});
+			} catch (_) {}
 		}
 
 		const newOrder = new Order({
@@ -148,16 +187,32 @@ export const checkoutSuccess = async (req, res) => {
 			stripeSessionId: sessionId,
 			shippingAddress,
 			status: "pending",
-			statusHistory: [
-				{ status: "pending", note: "Order placed successfully" },
-			],
+			statusHistory: [{ status: "pending", note: "Order placed successfully" }],
 		});
 
 		await newOrder.save();
 
+		for (const item of products) {
+			await Product.findByIdAndUpdate(item.id, {
+				$inc: { stock: -item.quantity },
+			});
+		}
+
+		try {
+			const populatedOrder = await Order.findById(newOrder._id)
+				.populate("user", "name email")
+				.populate("products.product", "name image price");
+
+			if (populatedOrder?.user?.email) {
+				await sendOrderConfirmationEmail(populatedOrder.user.email, populatedOrder);
+			}
+		} catch (emailErr) {
+			console.error("Order confirmation email failed:", emailErr.message);
+		}
+
 		res.status(200).json({
 			success: true,
-			message: "Payment successful, order created, and coupon deactivated if used.",
+			message: "Payment successful, order created.",
 			orderId: newOrder._id,
 		});
 	} catch (error) {
@@ -169,6 +224,7 @@ export const checkoutSuccess = async (req, res) => {
 	}
 };
 
+
 async function createStripeCoupon(discountPercentage) {
 	const coupon = await stripe.coupons.create({
 		percent_off: discountPercentage,
@@ -177,16 +233,16 @@ async function createStripeCoupon(discountPercentage) {
 	return coupon.id;
 }
 
-async function createNewCoupon(userId) {
-	await Coupon.findOneAndDelete({ userId });
+async function createNewGiftCoupon(userId) {
+	await Coupon.findOneAndDelete({ userId, userId: { $ne: null } });
+
 	const newCoupon = new Coupon({
 		code: "GIFT" + Math.random().toString(36).substring(2, 8).toUpperCase(),
 		discountPercentage: 10,
 		expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
 		userId: userId,
+		description: "Loyalty reward – 10% off your next order",
 	});
 	await newCoupon.save();
 	return newCoupon;
 }
-
-

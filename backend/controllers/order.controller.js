@@ -1,16 +1,15 @@
 import Order from "../models/order.model.js";
+import User from "../models/user.model.js";
 import { stripe } from "../lib/stripe.js";
+import { sendOrderStatusEmail } from "../lib/mailer.js";
+
 
 export const getMyOrders = async (req, res) => {
 	try {
 		const orders = await Order.find({ user: req.user._id })
-			.populate({
-				path: "products.product",
-				select: "name image price",
-			})
+			.populate({ path: "products.product", select: "name image price" })
 			.sort({ createdAt: -1 })
 			.lean();
-
 		res.json(orders);
 	} catch (error) {
 		console.error("Error in getMyOrders:", error.message);
@@ -21,18 +20,12 @@ export const getMyOrders = async (req, res) => {
 export const getOrderById = async (req, res) => {
 	try {
 		const order = await Order.findById(req.params.id)
-			.populate({
-				path: "products.product",
-				select: "name image price description category",
-			})
+			.populate({ path: "products.product", select: "name image price description category" })
 			.lean();
 
 		if (!order) return res.status(404).json({ message: "Order not found" });
 
-		if (
-			req.user.role !== "admin" &&
-			order.user.toString() !== req.user._id.toString()
-		) {
+		if (req.user.role !== "admin" && order.user.toString() !== req.user._id.toString()) {
 			return res.status(403).json({ message: "Not authorized" });
 		}
 
@@ -60,14 +53,12 @@ export const cancelOrder = async (req, res) => {
 
 		order.status = "cancelled";
 		order.cancelReason = reason || "Cancelled by customer";
-		order.statusHistory.push({
-			status: "cancelled",
-			note: reason || "Cancelled by customer",
-		});
+		order.statusHistory.push({ status: "cancelled", note: reason || "Cancelled by customer" });
 
 		await order.save();
 
 		const populated = await Order.findById(order._id)
+			.populate("user", "name email")
 			.populate({ path: "products.product", select: "name image price" })
 			.lean();
 
@@ -88,31 +79,20 @@ export const requestReturn = async (req, res) => {
 			return res.status(403).json({ message: "Not authorized" });
 
 		if (order.status !== "delivered") {
-			return res.status(400).json({
-				message: "Returns can only be requested for delivered orders.",
-			});
+			return res.status(400).json({ message: "Returns can only be requested for delivered orders." });
 		}
 
-		const deliveredEntry = [...order.statusHistory]
-			.reverse()
-			.find((h) => h.status === "delivered");
-
+		const deliveredEntry = [...order.statusHistory].reverse().find((h) => h.status === "delivered");
 		if (deliveredEntry) {
-			const daysSinceDelivery =
-				(Date.now() - new Date(deliveredEntry.changedAt).getTime()) / (1000 * 60 * 60 * 24);
-			if (daysSinceDelivery > 30) {
-				return res.status(400).json({
-					message: "Return window has expired (30 days from delivery).",
-				});
+			const daysSince = (Date.now() - new Date(deliveredEntry.changedAt).getTime()) / (1000 * 60 * 60 * 24);
+			if (daysSince > 30) {
+				return res.status(400).json({ message: "Return window has expired (30 days from delivery)." });
 			}
 		}
 
 		order.status = "return_requested";
 		order.returnReason = reason || "";
-		order.statusHistory.push({
-			status: "return_requested",
-			note: reason || "Return requested by customer",
-		});
+		order.statusHistory.push({ status: "return_requested", note: reason || "Return requested by customer" });
 
 		await order.save();
 
@@ -137,17 +117,12 @@ export const requestExchange = async (req, res) => {
 			return res.status(403).json({ message: "Not authorized" });
 
 		if (order.status !== "delivered") {
-			return res.status(400).json({
-				message: "Exchanges can only be requested for delivered orders.",
-			});
+			return res.status(400).json({ message: "Exchanges can only be requested for delivered orders." });
 		}
 
 		order.status = "exchange_requested";
 		order.exchangeReason = reason || "";
-		order.statusHistory.push({
-			status: "exchange_requested",
-			note: reason || "Exchange requested by customer",
-		});
+		order.statusHistory.push({ status: "exchange_requested", note: reason || "Exchange requested by customer" });
 
 		await order.save();
 
@@ -162,6 +137,7 @@ export const requestExchange = async (req, res) => {
 	}
 };
 
+
 export const getAllOrders = async (req, res) => {
 	try {
 		const page  = parseInt(req.query.page)  || 1;
@@ -173,7 +149,6 @@ export const getAllOrders = async (req, res) => {
 		if (status && status !== "all") filter.status = status;
 
 		if (search) {
-			const User = (await import("../models/user.model.js")).default;
 			const users = await User.find({
 				$or: [
 					{ email: { $regex: search, $options: "i" } },
@@ -204,19 +179,11 @@ export const getAllOrders = async (req, res) => {
 export const getOrderStats = async (req, res) => {
 	try {
 		const stats = await Order.aggregate([
-			{
-				$group: {
-					_id:     "$status",
-					count:   { $sum: 1 },
-					revenue: { $sum: "$totalAmount" },
-				},
-			},
+			{ $group: { _id: "$status", count: { $sum: 1 }, revenue: { $sum: "$totalAmount" } } },
 		]);
 
 		const formatted = {};
-		stats.forEach((s) => {
-			formatted[s._id] = { count: s.count, revenue: s.revenue };
-		});
+		stats.forEach((s) => { formatted[s._id] = { count: s.count, revenue: s.revenue }; });
 
 		res.json(formatted);
 	} catch (error) {
@@ -242,10 +209,7 @@ export const updateOrderStatus = async (req, res) => {
 		if (!order) return res.status(404).json({ message: "Order not found" });
 
 		order.status = status;
-		order.statusHistory.push({
-			status,
-			note: note || `Status updated to ${status} by admin`,
-		});
+		order.statusHistory.push({ status, note: note || `Status updated to ${status} by admin` });
 
 		await order.save();
 
@@ -253,6 +217,12 @@ export const updateOrderStatus = async (req, res) => {
 			.populate("user", "name email")
 			.populate("products.product", "name image price")
 			.lean();
+
+		if (populated.user?.email) {
+			sendOrderStatusEmail(populated.user.email, populated, status).catch((err) =>
+				console.error("Status email failed:", err.message)
+			);
+		}
 
 		res.json({ message: "Order status updated", order: populated });
 	} catch (error) {
@@ -280,7 +250,15 @@ export const setTrackingInfo = async (req, res) => {
 		}
 
 		await order.save();
-		res.json({ message: "Tracking info updated", order });
+
+		const populated = await Order.findById(order._id)
+			.populate("user", "name email")
+			.lean();
+		if (populated.user?.email && order.status === "shipped") {
+			sendOrderStatusEmail(populated.user.email, { ...populated }, "shipped").catch(() => {});
+		}
+
+		res.json({ message: "Tracking info updated", order: populated });
 	} catch (error) {
 		console.error("Error in setTrackingInfo:", error.message);
 		res.status(500).json({ message: "Server error", error: error.message });
@@ -290,7 +268,7 @@ export const setTrackingInfo = async (req, res) => {
 export const processRefund = async (req, res) => {
 	try {
 		const { amount } = req.body;
-		const order = await Order.findById(req.params.id);
+		const order = await Order.findById(req.params.id).populate("user", "name email");
 		if (!order) return res.status(404).json({ message: "Order not found" });
 
 		if (!order.stripeSessionId) {
@@ -319,10 +297,14 @@ export const processRefund = async (req, res) => {
 		});
 
 		await order.save();
+
+		if (order.user?.email) {
+			sendOrderStatusEmail(order.user.email, order, "refunded").catch(() => {});
+		}
+
 		res.json({ message: "Refund processed successfully", refund, order });
 	} catch (error) {
 		console.error("Error in processRefund:", error.message);
 		res.status(500).json({ message: "Server error", error: error.message });
 	}
 };
-
