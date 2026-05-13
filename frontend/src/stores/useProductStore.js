@@ -4,6 +4,7 @@ import axios from "../lib/axios";
 
 export const useProductStore = create((set) => ({
 	products: [],
+	featuredProducts: [],   // FIX: separate array so featured never overwrites category results
 	loading: false,
 
 	setProducts: (products) => set({ products }),
@@ -74,15 +75,15 @@ export const useProductStore = create((set) => ({
 		}
 	},
 
+	// FIX: writes to featuredProducts, never touches products
 	fetchFeaturedProducts: async () => {
 		set({ loading: true });
 		try {
 			const response = await axios.get("/products/featured");
-			set({ products: response.data, loading: false });
+			set({ featuredProducts: response.data, loading: false });
 		} catch (error) {
 			set({ error: "Failed to fetch products", loading: false });
 			console.log("Error fetching featured products:", error);
 		}
 	},
 }));
-

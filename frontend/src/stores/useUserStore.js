@@ -95,8 +95,6 @@ export const useUserStore = create((set, get) => ({
 		}
 	},
 
-	// Delete the custom uploaded profile pic.
-	// Falls back to googleProfilePic if it exists, then to initials.
 	deleteProfilePic: async () => {
 		set({ loading: true });
 		try {
@@ -112,6 +110,7 @@ export const useUserStore = create((set, get) => ({
 	},
 }));
 
+// FIX: declare these before the interceptor that references them
 let isRefreshing = false;
 let refreshPromise = null;
 
@@ -124,7 +123,6 @@ axios.interceptors.response.use(
 
 			try {
 				if (isRefreshing) {
-					// Wait for the existing refresh to finish, then retry
 					await refreshPromise;
 					return axios(originalRequest);
 				}

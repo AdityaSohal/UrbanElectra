@@ -7,6 +7,10 @@ import AdminPage from "./pages/AdminPage";
 import CategoryPage from "./pages/CategoryPage";
 import OrdersPage from "./pages/OrdersPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import SearchPage from "./pages/SearchPage";
+import ProductPage from "./pages/ProductPage";
+import WishlistPage from "./pages/WishlistPage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 import Navbar from "./components/Navbar";
 import { Toaster } from "react-hot-toast";
@@ -61,11 +65,25 @@ function App() {
 						path='/purchase-success'
 						element={user ? <PurchaseSuccessPage /> : <Navigate to='/login' />}
 					/>
-					<Route path='/purchase-cancel' element={user ? <PurchaseCancelPage /> : <Navigate to='/login' />} />
+					<Route
+						path='/purchase-cancel'
+						element={user ? <PurchaseCancelPage /> : <Navigate to='/login' />}
+					/>
 					<Route
 						path='/my-orders'
 						element={user ? <OrdersPage /> : <Navigate to='/login' />}
 					/>
+
+					{/* FIX: these pages existed but had no routes registered */}
+					<Route path='/search' element={<SearchPage />} />
+					<Route path='/product/:id' element={<ProductPage />} />
+					<Route
+						path='/wishlist'
+						element={user ? <WishlistPage /> : <Navigate to='/login' />}
+					/>
+
+					{/* 404 catch-all */}
+					<Route path='*' element={<NotFoundPage />} />
 				</Routes>
 			</div>
 			<Toaster />

@@ -5,7 +5,7 @@ const couponSchema = new mongoose.Schema(
 		code: {
 			type: String,
 			required: true,
-			unique: true,
+			unique: true,      // this already creates an index
 			uppercase: true,
 			trim: true,
 		},
@@ -56,8 +56,10 @@ const couponSchema = new mongoose.Schema(
 	}
 );
 
+// FIX: removed duplicate couponSchema.index({ code: 1 }) — the `unique: true`
+// on the field definition already creates this index. Declaring it again with
+// schema.index() triggers the Mongoose duplicate-index warning.
 couponSchema.index({ userId: 1, isActive: 1 });
-couponSchema.index({ code: 1 });
 
 const Coupon = mongoose.model("Coupon", couponSchema);
 

@@ -30,7 +30,6 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
-// FIX: express-mongo-sanitize crash fix (disable query sanitization)
 app.use(
   mongoSanitize({
     sanitizeQuery: false,
@@ -55,7 +54,6 @@ app.use("/api/orders", orderRoutes);
 
 app.get("/health", (req, res) => res.send("Server is healthy"));
 
-// Error handler (keep this LAST)
 app.use((err, req, res, next) => {
   console.error("Unhandled error:", err);
   res.status(err.status || 500).json({
@@ -63,9 +61,17 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, async () => {
-  await connectDB();
-  console.log(`Server running on http://localhost:${PORT}`);
+// Connect to DB at module load time so Vercel serverless picks it up
+// (app.listen is never called in serverless — connectDB must be top-level)
+connectDB().catch((err) => {
+  console.error("DB connection failed:", err.message);
 });
+
+// Only start the HTTP server when running locally (not on Vercel)
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
 
 export default app;

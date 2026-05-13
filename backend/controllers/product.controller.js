@@ -2,10 +2,17 @@ import { redis } from "../lib/redis.js";
 import cloudinary from "../lib/cloudinary.js";
 import Product from "../models/product.model.js";
 
+// FIX: use { isArchived: { $ne: true } } everywhere instead of { isArchived: false }
+// Products created before the isArchived field was added have the field as
+// undefined/missing — MongoDB strict equality (=== false) skips those documents,
+// so the API was returning an empty array even though products existed in the DB.
 
 async function updateFeaturedProductsCache() {
 	try {
-		const featuredProducts = await Product.find({ isFeatured: true, isArchived: false }).lean();
+		const featuredProducts = await Product.find({
+			isFeatured: true,
+			isArchived: { $ne: true },
+		}).lean();
 		await redis.set("featured_products", JSON.stringify(featuredProducts));
 	} catch (error) {
 		console.log("Error in update cache function", error);
@@ -30,10 +37,9 @@ async function destroyCloudinaryImage(url) {
 	}
 }
 
-
 export const getAllProducts = async (req, res) => {
 	try {
-		const products = await Product.find({ isArchived: false });
+		const products = await Product.find({ isArchived: { $ne: true } });
 		res.json({ products });
 	} catch (error) {
 		console.log("Error in getAllProducts controller", error.message);
@@ -47,7 +53,10 @@ export const getFeaturedProducts = async (req, res) => {
 		if (featuredProducts) {
 			return res.json(JSON.parse(featuredProducts));
 		}
-		featuredProducts = await Product.find({ isFeatured: true, isArchived: false }).lean();
+		featuredProducts = await Product.find({
+			isFeatured: true,
+			isArchived: { $ne: true },
+		}).lean();
 		if (featuredProducts.length === 0) {
 			return res.status(404).json({ message: "No featured products found" });
 		}
@@ -62,7 +71,7 @@ export const getFeaturedProducts = async (req, res) => {
 export const getRecommendedProducts = async (req, res) => {
 	try {
 		const products = await Product.aggregate([
-			{ $match: { isArchived: false } },
+			{ $match: { isArchived: { $ne: true } } },
 			{ $sample: { size: 4 } },
 			{
 				$project: {
@@ -80,7 +89,10 @@ export const getRecommendedProducts = async (req, res) => {
 export const getProductsByCategory = async (req, res) => {
 	const { category } = req.params;
 	try {
-		const products = await Product.find({ category, isArchived: false });
+		const products = await Product.find({
+			category,
+			isArchived: { $ne: true },
+		});
 		res.json({ products });
 	} catch (error) {
 		console.log("Error in getProductsByCategory controller", error.message);
@@ -88,18 +100,17 @@ export const getProductsByCategory = async (req, res) => {
 	}
 };
 
-
 export const searchProducts = async (req, res) => {
 	try {
 		const { q, category, minPrice, maxPrice, sort = "relevance", page = 1, limit = 12 } = req.query;
 
-		const filter = { isArchived: false };
+		const filter = { isArchived: { $ne: true } };
 
 		if (q && q.trim()) {
 			filter.$or = [
-				{ name: { $regex: q.trim(), $options: "i" } },
+				{ name:        { $regex: q.trim(), $options: "i" } },
 				{ description: { $regex: q.trim(), $options: "i" } },
-				{ tags: { $regex: q.trim(), $options: "i" } },
+				{ tags:        { $regex: q.trim(), $options: "i" } },
 			];
 		}
 
@@ -111,11 +122,11 @@ export const searchProducts = async (req, res) => {
 		}
 
 		const sortMap = {
-			relevance:     { createdAt: -1 },
-			price_asc:     { price: 1 },
-			price_desc:    { price: -1 },
-			rating:        { rating: -1 },
-			newest:        { createdAt: -1 },
+			relevance:  { createdAt: -1 },
+			price_asc:  { price: 1 },
+			price_desc: { price: -1 },
+			rating:     { rating: -1 },
+			newest:     { createdAt: -1 },
 		};
 		const sortOption = sortMap[sort] || sortMap.relevance;
 
@@ -138,11 +149,10 @@ export const searchProducts = async (req, res) => {
 	}
 };
 
-
 export const getProductById = async (req, res) => {
 	try {
 		const product = await Product.findById(req.params.id).populate("reviews.user", "name profilePic googleProfilePic");
-		if (!product || product.isArchived) {
+		if (!product || product.isArchived === true) {
 			return res.status(404).json({ message: "Product not found" });
 		}
 		res.json(product);
@@ -223,7 +233,6 @@ export const deleteProduct = async (req, res) => {
 		for (const img of product.images || []) {
 			await destroyCloudinaryImage(img);
 		}
-
 		await Product.findByIdAndDelete(req.params.id);
 		res.json({ message: "Product deleted successfully" });
 	} catch (error) {
@@ -249,7 +258,6 @@ export const toggleFeaturedProduct = async (req, res) => {
 	}
 };
 
-
 export const createReview = async (req, res) => {
 	try {
 		const { rating, comment } = req.body;
@@ -259,6 +267,7 @@ export const createReview = async (req, res) => {
 
 		const product = await Product.findById(req.params.id);
 		if (!product) return res.status(404).json({ message: "Product not found" });
+
 		const alreadyReviewed = product.reviews.find(
 			(r) => r.user.toString() === req.user._id.toString()
 		);
@@ -267,9 +276,9 @@ export const createReview = async (req, res) => {
 		}
 
 		const review = {
-			user: req.user._id,
-			name: req.user.name,
-			rating: Number(rating),
+			user:    req.user._id,
+			name:    req.user.name,
+			rating:  Number(rating),
 			comment,
 		};
 
@@ -311,7 +320,6 @@ export const deleteReview = async (req, res) => {
 		res.status(500).json({ message: "Server error", error: error.message });
 	}
 };
-
 
 export const getWishlist = async (req, res) => {
 	try {

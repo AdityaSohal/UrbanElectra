@@ -4,18 +4,19 @@ import { useProductStore } from "../stores/useProductStore";
 import FeaturedProducts from "../components/FeaturedProducts";
 
 const categories = [
-    { href: "/phones", name: "Phones", imageUrl: "/phones.jpg" },
-    { href: "/laptops", name: "Laptops", imageUrl: "/laptops.jpg" },
-    { href: "/tablets", name: "Tablets", imageUrl: "/tablets.jpg" },
-    { href: "/headphones", name: "Headphones", imageUrl: "/headphones.jpg" },
-    { href: "/cameras", name: "Cameras", imageUrl: "/cameras.jpg" },
-    { href: "/tvs", name: "TVs", imageUrl: "/tvs.jpg" },
-    { href: "/accessories", name: "Accessories", imageUrl: "/accessories.jpg" },
+	{ href: "/phones",      name: "Phones",      imageUrl: "/phones.jpg" },
+	{ href: "/laptops",     name: "Laptops",     imageUrl: "/laptops.jpg" },
+	{ href: "/tablets",     name: "Tablets",     imageUrl: "/tablets.jpg" },
+	{ href: "/headphones",  name: "Headphones",  imageUrl: "/headphones.jpg" },
+	{ href: "/cameras",     name: "Cameras",     imageUrl: "/cameras.jpg" },
+	{ href: "/tvs",         name: "TVs",         imageUrl: "/tvs.jpg" },
+	{ href: "/accessories", name: "Accessories", imageUrl: "/accessories.jpg" },
 ];
 
-
 const HomePage = () => {
-	const { fetchFeaturedProducts, products, isLoading } = useProductStore();
+	// FIX: use featuredProducts (separate field) so it never conflicts
+	// with the products array used by CategoryPage / AdminPage
+	const { fetchFeaturedProducts, featuredProducts, isLoading } = useProductStore();
 
 	useEffect(() => {
 		fetchFeaturedProducts();
@@ -37,9 +38,12 @@ const HomePage = () => {
 					))}
 				</div>
 
-				{!isLoading && products.length > 0 && <FeaturedProducts featuredProducts={products} />}
+				{!isLoading && featuredProducts.length > 0 && (
+					<FeaturedProducts featuredProducts={featuredProducts} />
+				)}
 			</div>
 		</div>
 	);
 };
+
 export default HomePage;

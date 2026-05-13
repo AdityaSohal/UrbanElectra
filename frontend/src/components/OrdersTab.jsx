@@ -1,25 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOrderStore } from "../stores/useOrderStore";
 import {
-	Search, Filter, ChevronLeft, ChevronRight, Package,
-	Truck, RefreshCw, DollarSign, X, Loader, ChevronDown,
-	ChevronUp, MapPin, Clock, CheckCircle, XCircle,
-	RotateCcw, AlertCircle, Eye,
+	Search, ChevronLeft, ChevronRight, Package,
+	Truck, DollarSign, X, Loader,
+	Eye,
 } from "lucide-react";
 
 const STATUS_CONFIG = {
-	pending: { label: "Pending", color: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" },
-	confirmed: { label: "Confirmed", color: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
-	processing: { label: "Processing", color: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
-	shipped: { label: "Shipped", color: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" },
-	delivered: { label: "Delivered", color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
-	cancelled: { label: "Cancelled", color: "bg-red-500/20 text-red-300 border-red-500/30" },
-	return_requested: { label: "Return Requested", color: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
-	returned: { label: "Returned", color: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
+	pending:            { label: "Pending",            color: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30" },
+	confirmed:          { label: "Confirmed",          color: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
+	processing:         { label: "Processing",         color: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
+	shipped:            { label: "Shipped",            color: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" },
+	delivered:          { label: "Delivered",          color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
+	cancelled:          { label: "Cancelled",          color: "bg-red-500/20 text-red-300 border-red-500/30" },
+	return_requested:   { label: "Return Requested",   color: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
+	returned:           { label: "Returned",           color: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
 	exchange_requested: { label: "Exchange Requested", color: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" },
-	exchanged: { label: "Exchanged", color: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" },
-	refunded: { label: "Refunded", color: "bg-gray-400/20 text-gray-300 border-gray-400/30" },
+	exchanged:          { label: "Exchanged",          color: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" },
+	refunded:           { label: "Refunded",           color: "bg-gray-400/20 text-gray-300 border-gray-400/30" },
 };
 
 const ALL_STATUSES = Object.keys(STATUS_CONFIG);
@@ -43,8 +42,8 @@ const StatCard = ({ label, value, sub, color }) => (
 
 const TrackingModal = ({ order, onClose, onSave }) => {
 	const [form, setForm] = useState({
-		trackingNumber: order.trackingNumber || "",
-		trackingCarrier: order.trackingCarrier || "",
+		trackingNumber:    order.trackingNumber    || "",
+		trackingCarrier:   order.trackingCarrier   || "",
 		estimatedDelivery: order.estimatedDelivery
 			? new Date(order.estimatedDelivery).toISOString().split("T")[0]
 			: "",
@@ -193,7 +192,7 @@ const OrderDetailDrawer = ({ order, onClose }) => {
 					<div className="space-y-3">
 						{order.products.map((item, i) => (
 							<div key={i} className="flex items-center gap-3">
-								<img src={item.product?.image} className="w-12 h-12 rounded-lg object-cover bg-gray-700" />
+								<img src={item.product?.image} className="w-12 h-12 rounded-lg object-cover bg-gray-700" alt={item.product?.name} />
 								<div className="flex-1">
 									<p className="text-sm text-white">{item.product?.name}</p>
 									<p className="text-xs text-gray-400">Qty: {item.quantity} × ${item.price.toFixed(2)}</p>
@@ -261,16 +260,14 @@ const OrdersTab = () => {
 	} = useOrderStore();
 
 	const [statusFilter, setStatusFilter] = useState("all");
-	const [search, setSearch] = useState("");
-	const [searchInput, setSearchInput] = useState("");
+	const [search, setSearch]             = useState("");
+	const [searchInput, setSearchInput]   = useState("");
 	const [trackingModal, setTrackingModal] = useState(null);
-	const [refundModal, setRefundModal] = useState(null);
-	const [detailOrder, setDetailOrder] = useState(null);
-	const [expandedRow, setExpandedRow] = useState(null);
+	const [refundModal, setRefundModal]     = useState(null);
+	const [detailOrder, setDetailOrder]     = useState(null);
+	const [expandedRow, setExpandedRow]     = useState(null);
 
-	useEffect(() => {
-		fetchOrderStats();
-	}, [fetchOrderStats]);
+	useEffect(() => { fetchOrderStats(); }, [fetchOrderStats]);
 
 	useEffect(() => {
 		fetchAllOrders({ status: statusFilter, search, page: 1, limit: 20 });
@@ -285,9 +282,9 @@ const OrdersTab = () => {
 		setSearch(searchInput);
 	};
 
-	const totalOrders = Object.values(orderStats).reduce((s, v) => s + (v.count || 0), 0);
+	const totalOrders  = Object.values(orderStats).reduce((s, v) => s + (v.count || 0), 0);
 	const pendingCount = (orderStats.pending?.count || 0) + (orderStats.confirmed?.count || 0) + (orderStats.processing?.count || 0);
-	const returnCount = (orderStats.return_requested?.count || 0) + (orderStats.exchange_requested?.count || 0);
+	const returnCount  = (orderStats.return_requested?.count || 0) + (orderStats.exchange_requested?.count || 0);
 	const totalRevenue = Object.values(orderStats).reduce((s, v) => s + (v.revenue || 0), 0);
 
 	return (
@@ -322,10 +319,10 @@ const OrdersTab = () => {
 
 			<div className="max-w-7xl mx-auto px-4">
 				<div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-					<StatCard label="Total Orders" value={totalOrders} color="border-gray-700" />
-					<StatCard label="Active Orders" value={pendingCount} sub="pending + processing" color="border-yellow-700/40" />
-					<StatCard label="Returns / Exchanges" value={returnCount} sub="awaiting review" color="border-orange-700/40" />
-					<StatCard label="Total Revenue" value={`$${totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} color="border-emerald-700/40" />
+					<StatCard label="Total Orders"        value={totalOrders}  color="border-gray-700" />
+					<StatCard label="Active Orders"       value={pendingCount} sub="pending + processing" color="border-yellow-700/40" />
+					<StatCard label="Returns / Exchanges" value={returnCount}  sub="awaiting review"    color="border-orange-700/40" />
+					<StatCard label="Total Revenue"       value={`$${totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} color="border-emerald-700/40" />
 				</div>
 
 				<div className="flex flex-wrap items-center gap-3 mb-5">
@@ -356,7 +353,7 @@ const OrdersTab = () => {
 						>
 							All ({totalOrders})
 						</button>
-						{["pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "return_requested", "exchange_requested", "refunded"].map((s) => (
+						{["pending","confirmed","processing","shipped","delivered","cancelled","return_requested","exchange_requested","refunded"].map((s) => (
 							<button
 								key={s}
 								onClick={() => setStatusFilter(s)}
@@ -383,18 +380,16 @@ const OrdersTab = () => {
 							<table className="min-w-full divide-y divide-gray-700">
 								<thead className="bg-gray-750">
 									<tr>
-										{["Order", "Customer", "Date", "Total", "Status", "Actions"].map((h) => (
-											<th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-												{h}
-											</th>
+										{["Order","Customer","Date","Total","Status","Actions"].map((h) => (
+											<th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">{h}</th>
 										))}
 									</tr>
 								</thead>
 								<tbody className="divide-y divide-gray-700">
 									{adminOrders.map((order) => (
-										<>
+										// FIX: use Fragment with key instead of <> which can't take a key prop
+										<Fragment key={order._id}>
 											<tr
-												key={order._id}
 												className="hover:bg-gray-700/50 transition-colors cursor-pointer"
 												onClick={() => setExpandedRow(expandedRow === order._id ? null : order._id)}
 											>
@@ -402,7 +397,7 @@ const OrdersTab = () => {
 													<div className="flex items-center gap-2">
 														<div className="flex -space-x-2">
 															{order.products.slice(0, 3).map((item, i) => (
-																<img key={i} src={item.product?.image} className="w-8 h-8 rounded-full object-cover border-2 border-gray-800" />
+																<img key={i} src={item.product?.image} alt="" className="w-8 h-8 rounded-full object-cover border-2 border-gray-800" />
 															))}
 														</div>
 														<div>
@@ -464,7 +459,7 @@ const OrdersTab = () => {
 											</tr>
 
 											{expandedRow === order._id && (
-												<tr key={`${order._id}-expand`} className="bg-gray-700/30">
+												<tr className="bg-gray-700/30">
 													<td colSpan={6} className="px-4 py-3">
 														<div className="flex flex-wrap gap-6 text-xs text-gray-400">
 															{order.shippingAddress && (
@@ -509,7 +504,7 @@ const OrdersTab = () => {
 													</td>
 												</tr>
 											)}
-										</>
+										</Fragment>
 									))}
 								</tbody>
 							</table>
@@ -547,4 +542,3 @@ const OrdersTab = () => {
 };
 
 export default OrdersTab;
-
