@@ -53,13 +53,16 @@ export const getFeaturedProducts = async (req, res) => {
 		if (featuredProducts) {
 			return res.json(JSON.parse(featuredProducts));
 		}
+
 		featuredProducts = await Product.find({
 			isFeatured: true,
 			isArchived: { $ne: true },
 		}).lean();
-		if (featuredProducts.length === 0) {
-			return res.status(404).json({ message: "No featured products found" });
-		}
+
+		// FIX: removed the 404 return when array is empty.
+		// An empty array is a valid response — the homepage handles it
+		// gracefully. Returning 404 caused an Axios error that spammed
+		// the console and broke error handling downstream.
 		await redis.set("featured_products", JSON.stringify(featuredProducts));
 		res.json(featuredProducts);
 	} catch (error) {

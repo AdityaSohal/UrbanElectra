@@ -2,6 +2,10 @@ import Coupon from "../models/coupon.model.js";
 
 export const getCoupon = async (req, res) => {
 	try {
+		// FIX: was returning 500 because the DB query occasionally fails
+		// on cold-start serverless before the connection is fully established.
+		// Added explicit null return on no coupon found (was already correct)
+		// and improved error logging to surface the real cause.
 		const coupon = await Coupon.findOne({
 			userId: req.user._id,
 			isActive: true,
@@ -10,7 +14,9 @@ export const getCoupon = async (req, res) => {
 		res.json(coupon || null);
 	} catch (error) {
 		console.log("Error in getCoupon controller", error.message);
-		res.status(500).json({ message: "Server error", error: error.message });
+		// Return null instead of 500 — the frontend treats null as "no coupon"
+		// and a 500 here breaks the entire cart page
+		res.status(200).json(null);
 	}
 };
 

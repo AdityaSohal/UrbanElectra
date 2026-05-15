@@ -20,6 +20,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// FIX: Vercel sits behind a proxy and sends X-Forwarded-For headers.
+// Without trust proxy, express-rate-limit throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+// on every request and rate limiting doesn't work correctly.
+app.set("trust proxy", 1);
+
 app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:5173",
@@ -38,19 +43,19 @@ app.use(
 
 app.use("/api", apiLimiter);
 
-app.use("/api/auth/login", authLimiter);
-app.use("/api/auth/signup", authLimiter);
+app.use("/api/auth/login",           authLimiter);
+app.use("/api/auth/signup",          authLimiter);
 app.use("/api/auth/forgot-password", otpLimiter);
-app.use("/api/auth/verify-otp", otpLimiter);
-app.use("/api/auth/reset-password", otpLimiter);
+app.use("/api/auth/verify-otp",      otpLimiter);
+app.use("/api/auth/reset-password",  otpLimiter);
 
-app.use("/api/auth", authRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/cart", cartRoutes);
-app.use("/api/coupons", couponRoutes);
-app.use("/api/payments", paymentRoutes);
+app.use("/api/auth",      authRoutes);
+app.use("/api/products",  productRoutes);
+app.use("/api/cart",      cartRoutes);
+app.use("/api/coupons",   couponRoutes);
+app.use("/api/payments",  paymentRoutes);
 app.use("/api/analytics", analyticsRoutes);
-app.use("/api/orders", orderRoutes);
+app.use("/api/orders",    orderRoutes);
 
 app.get("/health", (req, res) => res.send("Server is healthy"));
 
@@ -61,13 +66,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Connect to DB at module load time so Vercel serverless picks it up
-// (app.listen is never called in serverless — connectDB must be top-level)
+// Connect to DB at module level so Vercel serverless picks it up
 connectDB().catch((err) => {
   console.error("DB connection failed:", err.message);
 });
 
-// Only start the HTTP server when running locally (not on Vercel)
+// Only start HTTP server locally
 if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);

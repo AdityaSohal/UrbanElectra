@@ -2,11 +2,22 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 dotenv.config();
 
+// FIX: Vercel serverless functions have a very short execution window.
+// The default nodemailer behaviour opens a new SMTP connection per send,
+// which times out ("Unexpected socket close" / "TLS not established") before
+// the handshake completes. Setting pool:true reuses the connection within a
+// single function invocation. We also set tls.rejectUnauthorized:false as a
+// fallback for Gmail's occasional cert quirks in serverless environments.
 const transporter = nodemailer.createTransport({
 	service: "gmail",
+	pool: true,
+	maxConnections: 1,
 	auth: {
 		user: process.env.EMAIL_USER,
 		pass: process.env.EMAIL_PASS,
+	},
+	tls: {
+		rejectUnauthorized: false,
 	},
 });
 
@@ -48,7 +59,7 @@ export const sendOrderConfirmationEmail = async (to, order) => {
       <tr>
         <td style="padding:12px 8px;border-bottom:1px solid #374151;">
           <div style="display:flex;align-items:center;gap:12px;">
-            <img src="${item.product?.image || ""}" alt="${item.product?.name}" 
+            <img src="${item.product?.image || ""}" alt="${item.product?.name}"
               style="width:48px;height:48px;border-radius:8px;object-fit:cover;" />
             <span style="color:#f3f4f6;font-size:14px;">${item.product?.name || "Product"}</span>
           </div>
@@ -94,7 +105,6 @@ export const sendOrderConfirmationEmail = async (to, order) => {
           <p style="color:#9ca3af;font-size:13px;margin:0 0 24px;">
             Order ID: <strong style="color:#fff;font-family:monospace;">#${order._id.toString().slice(-8).toUpperCase()}</strong>
           </p>
-
           <table style="width:100%;border-collapse:collapse;">
             <thead>
               <tr>
@@ -105,19 +115,15 @@ export const sendOrderConfirmationEmail = async (to, order) => {
             </thead>
             <tbody>${itemsHtml}</tbody>
           </table>
-
           <div style="text-align:right;margin-top:16px;padding-top:16px;border-top:1px solid #374151;">
             <span style="color:#9ca3af;font-size:14px;">Total: </span>
             <span style="color:#34d399;font-size:20px;font-weight:700;">$${order.totalAmount.toFixed(2)}</span>
           </div>
-
           ${addressHtml}
-
           <div style="background:#1f2937;border-radius:8px;padding:16px;margin-top:20px;">
             <p style="color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Estimated Delivery</p>
             <p style="color:#f3f4f6;margin:0;font-size:14px;">3–5 business days</p>
           </div>
-
           <p style="color:#9ca3af;font-size:13px;margin-top:24px;">
             You can track your order status anytime in <strong style="color:#34d399;">My Orders</strong>.
           </p>
@@ -134,16 +140,16 @@ export const sendOrderConfirmationEmail = async (to, order) => {
 
 export const sendOrderStatusEmail = async (to, order, newStatus) => {
 	const statusMessages = {
-		confirmed:  { label: "Confirmed",   msg: "Your order has been confirmed and is being prepared." },
-		processing: { label: "Processing",  msg: "Your order is currently being processed." },
-		shipped:    { label: "Shipped",     msg: `Your order is on its way!${order.trackingNumber ? ` Tracking: ${order.trackingCarrier || ""} ${order.trackingNumber}` : ""}` },
-		delivered:  { label: "Delivered",   msg: "Your order has been delivered. Enjoy!" },
-		cancelled:  { label: "Cancelled",   msg: "Your order has been cancelled." },
-		refunded:   { label: "Refunded",    msg: `A refund of $${order.refundAmount?.toFixed(2) || "0.00"} has been processed to your original payment method.` },
+		confirmed:  { label: "Confirmed",  msg: "Your order has been confirmed and is being prepared." },
+		processing: { label: "Processing", msg: "Your order is currently being processed." },
+		shipped:    { label: "Shipped",    msg: `Your order is on its way!${order.trackingNumber ? ` Tracking: ${order.trackingCarrier || ""} ${order.trackingNumber}` : ""}` },
+		delivered:  { label: "Delivered",  msg: "Your order has been delivered. Enjoy!" },
+		cancelled:  { label: "Cancelled",  msg: "Your order has been cancelled." },
+		refunded:   { label: "Refunded",   msg: `A refund of $${order.refundAmount?.toFixed(2) || "0.00"} has been processed to your original payment method.` },
 	};
 
 	const info = statusMessages[newStatus];
-	if (!info) return; // don't email for every status
+	if (!info) return;
 
 	await transporter.sendMail({
 		from: `"UrbanElectra" <${process.env.EMAIL_USER}>`,
